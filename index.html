@@ -1,0 +1,2235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACI · Terminal de Análisis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root{--bg:#0D0F14;--surface:#13161D;--border:#1E2330;--border-hi:#2E3550;--accent:#00D4AA;--accent2:#F5A623;--danger:#E05252;--text:#C8D0E0;--text-dim:#5C6480;--text-hi:#EEF2FF;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.brand-name{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-hi);letter-spacing:.08em}
+.brand-sub{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+#status-text{font-family:var(--mono);font-size:11px}
+.s-ok{color:var(--accent)}.s-warn{color:var(--accent2)}.s-err{color:var(--danger)}
+#api-banner{background:#1A1200;border-bottom:1px solid #3A2800;padding:8px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#api-banner label{font-family:var(--mono);font-size:11px;color:var(--accent2);white-space:nowrap}
+#api-key-input{flex:1;max-width:440px;background:#0D0F14;border:1px solid #3A2800;border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none}
+#api-key-input:focus{border-color:var(--accent2)}
+#api-key-input::placeholder{color:var(--text-dim)}
+.btn-save-key{padding:5px 12px;background:var(--accent2);color:#0D0F14;border:none;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer}
+.key-hint{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+.app-layout{display:flex;flex:1;overflow:hidden;height:calc(100vh - 48px)}
+.sidebar{width:210px;min-width:210px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+.sb-section{padding:12px 0 4px}
+.sb-label{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.14em;text-transform:uppercase;padding:0 14px 6px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;border-left:2px solid transparent;transition:background .12s}
+.nav-item:hover{background:var(--border)}
+.nav-item.active{background:rgba(0,212,170,.07);border-left-color:var(--accent)}
+.nav-item.active .nav-text,.nav-item.active .nav-icon{color:var(--accent)}
+.nav-icon{font-size:12px;width:16px;text-align:center;color:var(--text-dim)}
+.nav-text{font-family:var(--mono);font-size:10px;color:var(--text);line-height:1.3;flex:1}
+.nav-tag{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:3px;background:var(--border);color:var(--text-dim)}
+.nav-item.active .nav-tag{background:rgba(0,212,170,.15);color:var(--accent)}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.ctrl-bar{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ctrl-grp{display:flex;flex-direction:column;gap:4px}
+.ctrl-label{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase}
+.ctrl-input{background:var(--bg);border:1px solid var(--border-hi);border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--text-hi);outline:none;transition:border-color .15s}
+.ctrl-input:focus{border-color:var(--accent)}
+.ctrl-input::placeholder{color:var(--text-dim)}
+.ctrl-select{background:var(--bg);border:1px solid var(--border-hi);border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--text-hi);outline:none;cursor:pointer}
+.btn-run{padding:7px 20px;background:var(--accent);color:#0D0F14;border:none;border-radius:4px;font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.06em;white-space:nowrap}
+.btn-run:hover{opacity:.82}
+.btn-run:disabled{opacity:.35;cursor:not-allowed}
+.panel{display:none;flex-direction:column;gap:16px;padding:20px;flex:1}
+.panel.active{display:flex}
+.loading{display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px;min-height:300px}
+.loading.active{display:flex}
+.loader-bar{width:220px;height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.loader-fill{height:100%;background:var(--accent);border-radius:2px;animation:load 1.5s ease-in-out infinite}
+@keyframes load{0%{transform:translateX(-100%) scaleX(.4)}50%{transform:translateX(50%) scaleX(.6)}100%{transform:translateX(300%) scaleX(.4)}}
+.loading-txt{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.1em}
+.err-box{background:#1A0808;border:1px solid #4A1010;border-radius:6px;padding:14px 18px;font-family:var(--mono);font-size:12px;color:var(--danger);display:none}
+.err-box.active{display:block}
+.res-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.res-title{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text-hi)}
+.res-ticker{background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);color:var(--accent);font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:3px;margin-left:10px}
+.res-ts{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:14px}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+.chart-box-title{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.metrics-row{display:flex;gap:10px;flex-wrap:wrap}
+.metric-chip{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;min-width:110px}
+.metric-label{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+.metric-value{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--text-hi);display:block}
+.metric-value.pos{color:var(--accent)}.metric-value.neg{color:var(--danger)}
+.metric-sub{font-family:var(--mono);font-size:9px;color:var(--text-dim);display:block}
+.insight-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:14px 18px}
+.insight-box h3{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.insight-content{font-size:13px;color:var(--text);line-height:1.75}
+.insight-content p{margin-bottom:8px}.insight-content p:last-child{margin-bottom:0}
+.insight-content strong{color:var(--text-hi)}
+.insight-content ul{padding-left:16px;margin-bottom:8px}.insight-content li{margin-bottom:3px}
+.data-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.data-table th{text-align:left;padding:7px 10px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border)}
+.data-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.data-table tr:last-child td{border-bottom:none}
+.pos{color:var(--accent)}.neg{color:var(--danger)}
+.param-chip{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.param-chip label{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase}
+.param-chip input,.param-chip select{background:var(--bg);border:1px solid var(--border-hi);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:11px;color:var(--text-hi);outline:none;width:110px}
+.param-chip input:focus,.param-chip select:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:3px}
+
+/* ── TOOLTIP SIDEBAR ─────────────────────────────────────────── */
+.nav-item{position:relative}
+.nav-tooltip{
+  display:none;
+  position:absolute;
+  left:calc(100% + 10px);
+  top:50%;transform:translateY(-50%);
+  background:#1E2330;
+  border:1px solid #2E3550;
+  border-radius:6px;
+  padding:10px 14px;
+  width:240px;
+  font-family:var(--sans);
+  font-size:11px;
+  color:var(--text);
+  line-height:1.55;
+  z-index:200;
+  pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.nav-tooltip::before{
+  content:'';
+  position:absolute;
+  right:100%;top:50%;transform:translateY(-50%);
+  border:6px solid transparent;
+  border-right-color:#2E3550;
+}
+.nav-item:hover .nav-tooltip{display:block}
+
+/* ── PANEL DESCRIPTION ───────────────────────────────────────── */
+.panel-desc{
+  background:rgba(0,212,170,.05);
+  border:1px solid rgba(0,212,170,.15);
+  border-radius:6px;
+  padding:10px 16px;
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+}
+.panel-desc-label{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--accent);
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.panel-desc-text{
+  font-family:var(--sans);
+  font-size:12px;
+  color:var(--text-dim);
+  line-height:1.5;
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="brand-dot"></div><div><div class="brand-name">ACI · TERMINAL</div><div class="brand-sub">Análisis Cuantitativo de Instrumentos</div></div></div>
+  <span id="status-text" class="s-warn">⬡ configurar api key</span>
+</header>
+<div id="api-banner">
+  <label>API KEY</label>
+  <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." autocomplete="off">
+  <button class="btn-save-key" onclick="saveApiKey()">GUARDAR</button>
+  <span class="key-hint">· Solo en sessionStorage</span>
+</div>
+<div class="app-layout">
+<nav class="sidebar">
+  <div class="sb-section"><div class="sb-label">Correlación</div>
+    <div class="nav-item" id="nav-covarianza" onclick="switchPanel('covarianza')"><span class="nav-icon">Σ</span><span class="nav-text">Matriz Covarianza</span><span class="nav-tag">01</span><span class="nav-tooltip">Mide cómo se mueven juntos los activos y cuánto varía cada uno.</span></div>
+    <div class="nav-item" id="nav-pearson" onclick="switchPanel('pearson')"><span class="nav-icon">r</span><span class="nav-text">Correlación Pearson</span><span class="nav-tag">02</span><span class="nav-tooltip">Correlación lineal entre activos: qué tan sincronizados están sus movimientos.</span></div>
+    <div class="nav-item" id="nav-pearson-nl" onclick="switchPanel('pearson-nl')"><span class="nav-icon">⟂</span><span class="nav-text">Pearson vs No Lineal</span><span class="nav-tag">03</span><span class="nav-tooltip">Compara Pearson con Spearman y Kendall para detectar relaciones no lineales que Pearson ignora.</span></div>
+    <div class="nav-item" id="nav-frobenius" onclick="switchPanel('frobenius')"><span class="nav-icon">‖‖</span><span class="nav-text">Dist. Frobenius</span><span class="nav-tag">04</span><span class="nav-tooltip">Cuantifica si la estructura de correlaciones cambió entre el primer y segundo período.</span></div>
+  </div>
+  <div class="sb-section"><div class="sb-label">Indicadores Técnicos</div>
+    <div class="nav-item" id="nav-macd" onclick="switchPanel('macd')"><span class="nav-icon">∿</span><span class="nav-text">MACD</span><span class="nav-tag">05</span><span class="nav-tooltip">Momentum por diferencia de EMAs. Señala cruces alcistas y bajistas de tendencia.</span></div>
+    <div class="nav-item" id="nav-estocastico" onclick="switchPanel('estocastico')"><span class="nav-icon">%</span><span class="nav-text">Estocástico</span><span class="nav-tag">06</span><span class="nav-tooltip">Mide dónde está el cierre dentro del rango reciente: identifica sobrecompra y sobreventa.</span></div>
+    <div class="nav-item" id="nav-cci" onclick="switchPanel('cci')"><span class="nav-icon">⌇</span><span class="nav-text">CCI</span><span class="nav-tag">07</span><span class="nav-tooltip">Detecta desviaciones del precio respecto al precio típico promedio.</span></div>
+    <div class="nav-item" id="nav-hurst" onclick="switchPanel('hurst')"><span class="nav-icon">H</span><span class="nav-text">Exponente Hurst</span><span class="nav-tag">08</span><span class="nav-tooltip">Clasifica si el activo tiende a seguir tendencias (H>0.55), revertir a la media (H<0.45) o moverse aleatoriamente.</span></div>
+    <div class="nav-item" id="nav-elliott" onclick="switchPanel('elliott')"><span class="nav-icon">〜</span><span class="nav-text">Ondas Elliott</span><span class="nav-tag">09</span><span class="nav-tooltip">Detecta picos y valles significativos en el precio suavizado, aproximando una estructura de ondas.</span></div>
+    <div class="nav-item" id="nav-rsi" onclick="switchPanel('rsi')"><span class="nav-icon">λ</span><span class="nav-text">RSI</span><span class="nav-tag">22</span><span class="nav-tooltip">Fuerza relativa de movimientos alcistas vs bajistas. Suavizado de Wilder (α=1/14). Datos reales.</span></div>
+    <div class="nav-item" id="nav-bollinger" onclick="switchPanel('bollinger')"><span class="nav-icon">⊃</span><span class="nav-text">Bollinger Bands</span><span class="nav-tag">23</span><span class="nav-tooltip">Bandas estadísticas alrededor del precio. Estrechez = baja volatilidad; ruptura = movimiento fuerte. Datos reales.</span></div>
+    <div class="nav-item" id="nav-keltner" onclick="switchPanel('keltner')"><span class="nav-icon">⊂</span><span class="nav-text">Keltner Channels</span><span class="nav-tag">24</span><span class="nav-tooltip">Canal basado en precio típico y rango diario promedio. Fórmula original de Chester Keltner (1960). Datos reales.</span></div>
+    <div class="nav-item" id="nav-obv" onclick="switchPanel('obv')"><span class="nav-icon">↕</span><span class="nav-text">On Balance Volume</span><span class="nav-tag">25</span><span class="nav-tooltip">Suma acumulada de volumen con signo según dirección del precio. Confirma o contradice la tendencia. Datos reales.</span></div>
+    <div class="nav-item" id="nav-mfi" onclick="switchPanel('mfi')"><span class="nav-icon">$</span><span class="nav-text">Money Flow Index</span><span class="nav-tag">26</span><span class="nav-tooltip">Como el RSI pero ponderado por volumen. Captura presión de dinero real. Datos reales.</span></div>
+    <div class="nav-item" id="nav-impulso" onclick="switchPanel('impulso')"><span class="nav-icon">⚡</span><span class="nav-text">Impulso / Momentum</span><span class="nav-tag">27</span><span class="nav-tooltip">Diferencia cruda entre precio actual y precio de hace 10 días. Mide velocidad de cambio. Datos reales.</span></div>
+    <div class="nav-item" id="nav-aroon" onclick="switchPanel('aroon')"><span class="nav-icon">∧</span><span class="nav-text">Oscilador de Aroon</span><span class="nav-tag">28</span><span class="nav-tooltip">Mide hace cuántos días ocurrió el último máximo (Up) y mínimo (Down) dentro de 25 días. Datos reales.</span></div>
+    <div class="nav-item" id="nav-oad" onclick="switchPanel('oad')"><span class="nav-icon">⇅</span><span class="nav-text">Oscilador Acumulación</span><span class="nav-tag">29</span><span class="nav-tooltip">Oscilador 0−100: mide si el precio cierra cerca del máximo (acumulación) o del mínimo (distribución) del día. Datos reales.</span></div>
+    <div class="nav-item" id="nav-autoreg" onclick="switchPanel('autoreg')"><span class="nav-icon">∝</span><span class="nav-text">Bandas Autoregresión</span><span class="nav-tag">30</span><span class="nav-tooltip">Recta de tendencia sobre el precio con bandas estadísticas (±2σ de residuos). Datos reales.</span></div>
+  </div>
+  <div class="sb-section"><div class="sb-label">Value at Risk</div>
+    <div class="nav-item" id="nav-var-param" onclick="switchPanel('var-param')"><span class="nav-icon">φ</span><span class="nav-text">VaR Paramétrico</span><span class="nav-tag">10</span><span class="nav-tooltip">Pérdida máxima asumiendo retornos normales. Fórmula cerrada, exacta bajo ese supuesto.</span></div>
+    <div class="nav-item" id="nav-var-hist" onclick="switchPanel('var-hist')"><span class="nav-icon">⊞</span><span class="nav-text">VaR Histórico</span><span class="nav-tag">11</span><span class="nav-tooltip">Pérdida máxima usando retornos históricos reales, sin asumir distribución paramétrica.</span></div>
+    <div class="nav-item" id="nav-var-mc" onclick="switchPanel('var-mc')"><span class="nav-icon">⚄</span><span class="nav-text">VaR Monte Carlo</span><span class="nav-tag">12</span><span class="nav-tooltip">Simula 10.000 escenarios para estimar la distribución de pérdidas potenciales.</span></div>
+    <div class="nav-item" id="nav-var-comp" onclick="switchPanel('var-comp')"><span class="nav-icon">≡</span><span class="nav-text">VaR Comparación</span><span class="nav-tag">13</span><span class="nav-tooltip">Los tres métodos juntos: dónde coinciden y dónde divergen revela información sobre la distribución real.</span></div>
+  </div>
+  <div class="sb-section"><div class="sb-label">Performance Attribution</div>
+    <div class="nav-item" id="nav-bhb" onclick="switchPanel('bhb')"><span class="nav-icon">△</span><span class="nav-text">Brinson-Hood-Beebower</span><span class="nav-tag">14</span><span class="nav-tooltip">Descompone el exceso de retorno en Asignación + Selección + Interacción (Brinson-Hood-Beebower 1986).</span></div>
+    <div class="nav-item" id="nav-bf" onclick="switchPanel('bf')"><span class="nav-icon">△</span><span class="nav-text">Brinson-Fachler</span><span class="nav-tag">15</span><span class="nav-tooltip">Igual que BHB pero con solo 2 efectos: la interacción queda absorbida en Selección (Brinson-Fachler 1985).</span></div>
+  </div>
+  <div class="sb-section"><div class="sb-label">Portafolio / CAPM</div>
+    <div class="nav-item" id="nav-capm" onclick="switchPanel('capm')"><span class="nav-icon">β</span><span class="nav-text">CAPM y SML</span><span class="nav-tag">16</span><span class="nav-tooltip">Retorno esperado según riesgo sistemático (β). El alfa es cuánto supera o falla al modelo.</span></div>
+    <div class="nav-item" id="nav-frontera" onclick="switchPanel('frontera')"><span class="nav-icon">◠</span><span class="nav-text">Frontera Eficiente MC</span><span class="nav-tag">17</span><span class="nav-tooltip">Simulación de 3.000 portafolios aleatorios para aproximar el espacio riesgo/retorno óptimo.</span></div>
+    <div class="nav-item" id="nav-cml-sim" onclick="switchPanel('cml-sim')"><span class="nav-icon">↗</span><span class="nav-text">CML Simulación</span><span class="nav-tag">18</span><span class="nav-tooltip">Construye la Capital Market Line: la combinación óptima entre el activo libre de riesgo y el portafolio tangente.</span></div>
+    <div class="nav-item" id="nav-cml-opt" onclick="switchPanel('cml-opt')"><span class="nav-icon">★</span><span class="nav-text">CML Optimización</span><span class="nav-tag">19</span><span class="nav-tooltip">CML con mayor densidad de simulación para aproximar mejor la frontera verdadera.</span></div>
+    <div class="nav-item" id="nav-upside" onclick="switchPanel('upside')"><span class="nav-icon">↑</span><span class="nav-text">Frontera Upside</span><span class="nav-tag">20</span><span class="nav-tooltip">Markowitz con retornos esperados del analista (no históricos), sin cap por activo.</span></div>
+    <div class="nav-item" id="nav-upside-cap" onclick="switchPanel('upside-cap')"><span class="nav-icon">⊓</span><span class="nav-text">Upside Cap 20%</span><span class="nav-tag">21</span><span class="nav-tooltip">Igual que Upside con cap máximo del 20% por activo para forzar diversificación mínima.</span></div>
+  </div>
+  <div class="sb-section"><div class="sb-label">Fundamentals</div>
+    <div class="nav-item" id="nav-estados" onclick="switchPanel('estados')"><span class="nav-icon">📊</span><span class="nav-text">Estados Contables</span><span class="nav-tag">31</span><span class="nav-tooltip">Balance General, Estado de Resultados y Flujo de Caja vía FMP API (requiere API key de FMP, gratis).</span></div>
+    <div class="nav-item" id="nav-ratios" onclick="switchPanel('ratios')"><span class="nav-icon">×</span><span class="nav-text">Portfolio Ratios</span><span class="nav-tag">32</span><span class="nav-tooltip">P/E, P/B, P/CF y EV/EBITDA TTM desde FMP para comparar valuación relativa entre activos.</span></div>
+  </div>
+</nav>
+<main class="main">
+<div class="ctrl-bar">
+  <div class="ctrl-grp"><span class="ctrl-label">Activo(s)</span><input class="ctrl-input" id="input-tickers" placeholder="AAPL, MSFT, BTC-USD" style="min-width:180px"></div>
+  <div class="ctrl-grp"><span class="ctrl-label">Período</span><select class="ctrl-select" id="input-period"><option value="1y" selected>1 año</option><option value="2y">2 años</option><option value="3y">3 años</option><option value="5y">5 años</option></select></div>
+  <div class="ctrl-grp"><span class="ctrl-label">Frecuencia</span><select class="ctrl-select" id="input-freq"><option value="daily" selected>Diaria</option><option value="weekly">Semanal</option></select></div>
+  <button class="btn-run" id="btn-run" onclick="runAnalysis()">▶ EJECUTAR</button>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-left:4px">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.08em">FUENTE</span>
+      <span id="data-source-badge" style="font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:600">Yahoo Finance</span>
+    </div>
+</div>
+<!-- PANELS HELPER MACRO: loading + error + results wrapper -->
+<!-- 01 COVARIANZA -->
+<div class="panel active" id="panel-covarianza">
+  <div class="loading" id="loading-covarianza"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO MATRIZ Σ...</div></div>
+  <div class="err-box" id="error-covarianza"></div>
+  <div id="results-covarianza" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Matriz de Varianzas y Covarianzas<span class="res-ticker" id="rt-covarianza"></span></span><span class="res-ts" id="ts-covarianza"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Dos heatmaps (diario y anual), barras de volatilidad anual y evolución de retornos de todos los activos en un mismo gráfico.</span></div>
+    <div class="metrics-row" id="metrics-covarianza"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Σ Diaria</div><div id="chart-cov-daily" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Σ Anualizada (×252)</div><div id="chart-cov-annual" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Volatilidad anual (σ)</div><div id="chart-cov-vol" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Retornos diarios</div><div id="chart-cov-rets" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-covarianza">—</div></div>
+  </div>
+</div>
+<!-- 02 PEARSON -->
+<div class="panel" id="panel-pearson">
+  <div class="loading" id="loading-pearson"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO CORRELACIONES...</div></div>
+  <div class="err-box" id="error-pearson"></div>
+  <div id="results-pearson" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Correlación de Pearson<span class="res-ticker" id="rt-pearson"></span></span><span class="res-ts" id="ts-pearson"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Heatmap de la matriz de correlaciones (−1 a +1), scatter del par más correlacionado y precios en base 100.</span></div>
+    <div class="metrics-row" id="metrics-pearson"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Heatmap de correlaciones</div><div id="chart-pearson-heatmap" style="height:360px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Scatter — par más correlacionado</div><div id="chart-pearson-scatter" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Precios normalizados (Base 100)</div><div id="chart-pearson-rets" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-pearson">—</div></div>
+  </div>
+</div>
+<!-- 03 PEARSON vs NO LINEAL -->
+<div class="panel" id="panel-pearson-nl">
+  <div class="loading" id="loading-pearson-nl"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · PEARSON vs NO LINEAL...</div></div>
+  <div class="err-box" id="error-pearson-nl"></div>
+  <div id="results-pearson-nl" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Pearson vs Relaciones No Lineales<span class="res-ticker" id="rt-pearson-nl"></span></span><span class="res-ts" id="ts-pearson-nl"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Cuatro gráficos: precios, retorno vs retorno², scatter y correlación rolling 60d. Tabla con tres métricas y señal de divergencia.</span></div>
+    <div class="metrics-row" id="metrics-pearson-nl"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Precios normalizados (Base 100)</div><div id="chart-pnl-linear" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Retorno vs Retorno² — no linealidad</div><div id="chart-pnl-quad" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Scatter de retornos</div><div id="chart-pnl-scatter" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Correlación rolling 60d</div><div id="chart-pnl-rolling" style="height:280px"></div></div>
+    </div>
+    <div class="chart-box"><div class="chart-box-title">Tabla Pearson / Spearman / Kendall</div>
+      <table class="data-table"><thead><tr><th>Par</th><th>Pearson</th><th>Spearman</th><th>Kendall</th><th>Divergencia</th><th>Señal</th></tr></thead><tbody id="tbody-pearson-nl"></tbody></table>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-pearson-nl">—</div></div>
+  </div>
+</div>
+<!-- 04 FROBENIUS -->
+<div class="panel" id="panel-frobenius">
+  <div class="loading" id="loading-frobenius"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · FROBENIUS...</div></div>
+  <div class="err-box" id="error-frobenius"></div>
+  <div id="results-frobenius" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Distancia de Frobenius<span class="res-ticker" id="rt-frobenius"></span></span><span class="res-ts" id="ts-frobenius"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Heatmaps de ambos períodos y su diferencia. El escalar ‖Σ₁−Σ₂‖_F resume el grado de cambio.</span></div>
+    <div class="metrics-row" id="metrics-frobenius"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Correlaciones — Período 1</div><div id="chart-frob-p1" style="height:300px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Correlaciones — Período 2</div><div id="chart-frob-p2" style="height:300px"></div></div>
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Diferencia Σ₁ − Σ₂</div><div id="chart-frob-diff" style="height:300px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-frobenius">—</div></div>
+  </div>
+</div>
+<!-- 05 MACD -->
+<div class="panel" id="panel-macd">
+  <div class="loading" id="loading-macd"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO MACD...</div></div>
+  <div class="err-box" id="error-macd"></div>
+  <div id="results-macd" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">MACD — Moving Average Convergence Divergence<span class="res-ticker" id="rt-macd"></span></span><span class="res-ts" id="ts-macd"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + MACD (EMA12−EMA26), señal (EMA9) e histograma verde/rojo.</span></div>
+    <div class="metrics-row" id="metrics-macd"></div>
+    <div id="charts-macd" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-macd">—</div></div>
+  </div>
+</div>
+<!-- 06 ESTOCÁSTICO -->
+<div class="panel" id="panel-estocastico">
+  <div class="loading" id="loading-estocastico"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO ESTOCÁSTICO...</div></div>
+  <div class="err-box" id="error-estocastico"></div>
+  <div id="results-estocastico" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Oscilador Estocástico (%K / %D)<span class="res-ticker" id="rt-estocastico"></span></span><span class="res-ts" id="ts-estocastico"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + %K (velocidad) y %D (suavizado), con zonas en 80 y 20.</span></div>
+    <div id="charts-estocastico" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-estocastico">—</div></div>
+  </div>
+</div>
+<!-- 07 CCI -->
+<div class="panel" id="panel-cci">
+  <div class="loading" id="loading-cci"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO CCI...</div></div>
+  <div class="err-box" id="error-cci"></div>
+  <div id="results-cci" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Commodity Channel Index<span class="res-ticker" id="rt-cci"></span></span><span class="res-ts" id="ts-cci"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + CCI con líneas en ±100. Extremos sugieren reversión o aceleración de tendencia.</span></div>
+    <div id="charts-cci" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-cci">—</div></div>
+  </div>
+</div>
+<!-- 08 HURST -->
+<div class="panel" id="panel-hurst">
+  <div class="loading" id="loading-hurst"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CALCULANDO HURST...</div></div>
+  <div class="err-box" id="error-hurst"></div>
+  <div id="results-hurst" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Exponente de Hurst (rolling 100d)<span class="res-ticker" id="rt-hurst"></span></span><span class="res-ts" id="ts-hurst"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + exponente de Hurst rolling 100 días, con bandas en 0.45 y 0.55.</span></div>
+    <div class="metrics-row" id="metrics-hurst"></div>
+    <div id="charts-hurst" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-hurst">—</div></div>
+  </div>
+</div>
+<!-- 09 ELLIOTT -->
+<div class="panel" id="panel-elliott">
+  <div class="loading" id="loading-elliott"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · DETECTANDO ONDAS...</div></div>
+  <div class="err-box" id="error-elliott"></div>
+  <div id="results-elliott" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Ondas de Elliott — Detección de Picos y Valles<span class="res-ticker" id="rt-elliott"></span></span><span class="res-ts" id="ts-elliott"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio crudo, curva suavizada (ventana 21d), picos en rojo y valles en verde.</span></div>
+    <div class="metrics-row" id="metrics-elliott"></div>
+    <div id="charts-elliott" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-elliott">—</div></div>
+  </div>
+</div>
+<!-- 10 VaR PARAMÉTRICO -->
+<div class="panel" id="panel-var-param">
+  <div class="loading" id="loading-var-param"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · VaR PARAMÉTRICO...</div></div>
+  <div class="err-box" id="error-var-param"></div>
+  <div id="results-var-param" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">VaR y CVaR Paramétrico<span class="res-ticker" id="rt-var-param"></span></span><span class="res-ts" id="ts-var-param"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Distribución normal con cola sombreada, VaR y CVaR marcados. Barras de vol por activo. Configurable: capital, confianza, horizonte.</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="param-chip"><label>Capital (USD)</label><input id="p-capital" type="number" value="1000000" step="100000"></div>
+      <div class="param-chip"><label>Confianza</label><select id="p-conf"><option value="0.95" selected>95%</option><option value="0.99">99%</option><option value="0.90">90%</option></select></div>
+      <div class="param-chip"><label>Horizonte (días)</label><input id="p-days" type="number" value="1" min="1" max="30"></div>
+    </div>
+    <div class="metrics-row" id="metrics-var-param"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Distribución normal — cola sombreada</div><div id="chart-var-param-dist" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Volatilidad por activo</div><div id="chart-var-param-contrib" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Retornos del portafolio</div><div id="chart-var-param-rets" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-var-param">—</div></div>
+  </div>
+</div>
+<!-- 11 VaR HISTÓRICO -->
+<div class="panel" id="panel-var-hist">
+  <div class="loading" id="loading-var-hist"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · VaR HISTÓRICO...</div></div>
+  <div class="err-box" id="error-var-hist"></div>
+  <div id="results-var-hist" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">VaR y CVaR Histórico<span class="res-ticker" id="rt-var-hist"></span></span><span class="res-ts" id="ts-var-hist"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Histograma de retornos observados con VaR marcado, los 20 peores días y evolución acumulada del portafolio.</span></div>
+    <div class="metrics-row" id="metrics-var-hist"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Distribución empírica de retornos</div><div id="chart-var-hist-dist" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Peores 20 días observados</div><div id="chart-var-hist-sorted" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Evolución del portafolio</div><div id="chart-var-hist-evol" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-var-hist">—</div></div>
+  </div>
+</div>
+<!-- 12 VaR MC -->
+<div class="panel" id="panel-var-mc">
+  <div class="loading" id="loading-var-mc"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · VaR MONTE CARLO...</div></div>
+  <div class="err-box" id="error-var-mc"></div>
+  <div id="results-var-mc" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">VaR Monte Carlo<span class="res-ticker" id="rt-var-mc"></span></span><span class="res-ts" id="ts-var-mc"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Histograma de simulaciones con VaR/CVaR, senderos de precio aleatorios y convergencia del VaR vs número de simulaciones.</span></div>
+    <div class="metrics-row" id="metrics-var-mc"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Distribución simulada (10.000 escenarios)</div><div id="chart-var-mc-dist" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Senderos de precio simulados</div><div id="chart-var-mc-paths" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Convergencia VaR vs N simulaciones</div><div id="chart-var-mc-conv" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-var-mc">—</div></div>
+  </div>
+</div>
+<!-- 13 VaR COMPARACIÓN -->
+<div class="panel" id="panel-var-comp">
+  <div class="loading" id="loading-var-comp"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · COMPARANDO VaR...</div></div>
+  <div class="err-box" id="error-var-comp"></div>
+  <div id="results-var-comp" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Comparación VaR — 3 Métodos<span class="res-ticker" id="rt-var-comp"></span></span><span class="res-ts" id="ts-var-comp"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Barras agrupadas de VaR y CVaR por método, y distribuciones superpuestas (normal vs empírica vs MC).</span></div>
+    <div class="metrics-row" id="metrics-var-comp"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">VaR y CVaR por método (USD)</div><div id="chart-var-comp-bars" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Distribuciones superpuestas</div><div id="chart-var-comp-dist" style="height:320px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-var-comp">—</div></div>
+  </div>
+</div>
+<!-- 14 BHB -->
+<div class="panel" id="panel-bhb">
+  <div class="loading" id="loading-bhb"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · BHB...</div></div>
+  <div class="err-box" id="error-bhb"></div>
+  <div id="results-bhb" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Brinson-Hood-Beebower (BHB)<span class="res-ticker" id="rt-bhb"></span></span><span class="res-ts" id="ts-bhb"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Barras apiladas por sector y totales agregados. Usa datos sectoriales fijos (Tech / Healthcare / Finance).</span></div>
+    <div class="metrics-row" id="metrics-bhb"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Descomposición por sector</div><div id="chart-bhb-sectors" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Totales agregados</div><div id="chart-bhb-totals" style="height:320px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-bhb">—</div></div>
+  </div>
+</div>
+<!-- 15 BF -->
+<div class="panel" id="panel-bf">
+  <div class="loading" id="loading-bf"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · BF...</div></div>
+  <div class="err-box" id="error-bf"></div>
+  <div id="results-bf" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Brinson-Fachler (BF)<span class="res-ticker" id="rt-bf"></span></span><span class="res-ts" id="ts-bf"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Comparación lado a lado de Asignación BHB vs BF por sector, y resumen total con ambos modelos.</span></div>
+    <div class="metrics-row" id="metrics-bf"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Asignación BHB vs BF por sector</div><div id="chart-bf-alloc" style="height:320px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Resumen BHB vs BF</div><div id="chart-bf-summary" style="height:320px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-bf">—</div></div>
+  </div>
+</div>
+<!-- 16 CAPM -->
+<div class="panel" id="panel-capm">
+  <div class="loading" id="loading-capm"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CAPM y SML...</div></div>
+  <div class="err-box" id="error-capm"></div>
+  <div id="results-capm" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">CAPM y Security Market Line<span class="res-ticker" id="rt-capm"></span></span><span class="res-ts" id="ts-capm"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Security Market Line con activos sobre/bajo la recta, barras realizado vs CAPM, y tabla de betas y alfas.</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="param-chip"><label>Tasa libre riesgo (Rf)</label><input id="p-rf-capm" type="number" value="0.04" step="0.01" min="0"></div>
+    </div>
+    <div class="metrics-row" id="metrics-capm"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Security Market Line (SML)</div><div id="chart-capm-sml" style="height:340px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Realizado vs CAPM (alfa)</div><div id="chart-capm-alfa" style="height:340px"></div></div>
+    </div>
+    <div class="chart-box"><div class="chart-box-title">Tabla métricas CAPM</div>
+      <table class="data-table"><thead><tr><th>Activo</th><th>Beta (β)</th><th>Retorno Real</th><th>CAPM E[R]</th><th>Alfa (α)</th><th>Señal</th></tr></thead><tbody id="tbody-capm"></tbody></table>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-capm">—</div></div>
+  </div>
+</div>
+<!-- 17 FRONTERA MC -->
+<div class="panel" id="panel-frontera">
+  <div class="loading" id="loading-frontera"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · FRONTERA MC...</div></div>
+  <div class="err-box" id="error-frontera"></div>
+  <div id="results-frontera" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Frontera Eficiente — Monte Carlo<span class="res-ticker" id="rt-frontera"></span></span><span class="res-ts" id="ts-frontera"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Nube coloreada por Sharpe, activos individuales, portafolio óptimo marcado con estrella, pesos y contribución al riesgo.</span></div>
+    <div class="metrics-row" id="metrics-frontera"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Nube de portafolios — coloreado por Sharpe</div><div id="chart-frontera-nube" style="height:400px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Pesos del portafolio óptimo</div><div id="chart-frontera-pesos" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Contribución al riesgo</div><div id="chart-frontera-riesgo" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-frontera">—</div></div>
+  </div>
+</div>
+<!-- 18 CML SIM -->
+<div class="panel" id="panel-cml-sim">
+  <div class="loading" id="loading-cml-sim"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CML SIMULACIÓN...</div></div>
+  <div class="err-box" id="error-cml-sim"></div>
+  <div id="results-cml-sim" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Capital Market Line — Simulación<span class="res-ticker" id="rt-cml-sim"></span></span><span class="res-ts" id="ts-cml-sim"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Nube + CML desde Rf hasta el tangente y más allá (zona de leverage). Contribución al riesgo del portafolio tangente.</span></div>
+    <div class="metrics-row" id="metrics-cml-sim"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Frontera + CML</div><div id="chart-cml-sim-main" style="height:380px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Contribución al riesgo</div><div id="chart-cml-sim-contrib" style="height:380px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-cml-sim">—</div></div>
+  </div>
+</div>
+<!-- 19 CML OPT -->
+<div class="panel" id="panel-cml-opt">
+  <div class="loading" id="loading-cml-opt"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · CML OPTIMIZACIÓN...</div></div>
+  <div class="err-box" id="error-cml-opt"></div>
+  <div id="results-cml-opt" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">CML — Optimización Numérica<span class="res-ticker" id="rt-cml-opt"></span></span><span class="res-ts" id="ts-cml-opt"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Misma visualización pero con 6.000 portafolios. Útil para comparar con la optimización SLSQP exacta del script Python.</span></div>
+    <div class="metrics-row" id="metrics-cml-opt"></div>
+    <div class="chart-grid">
+      <div class="chart-box" style="grid-column:1/-1"><div class="chart-box-title">Frontera eficiente + CML</div><div id="chart-cml-opt-main" style="height:400px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Pesos del tangente</div><div id="chart-cml-opt-pesos" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Contribución al riesgo</div><div id="chart-cml-opt-riesgo" style="height:280px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-cml-opt">—</div></div>
+  </div>
+</div>
+<!-- 20 UPSIDE -->
+<div class="panel" id="panel-upside">
+  <div class="loading" id="loading-upside"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · FRONTERA UPSIDE...</div></div>
+  <div class="err-box" id="error-upside"></div>
+  <div id="results-upside" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Frontera con Retornos Esperados (sin cap)<span class="res-ticker" id="rt-upside"></span></span><span class="res-ts" id="ts-upside"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Frontera + CML con inputs propios. El óptimo suele concentrarse en 1−2 activos — ilustra 'garbage in, garbage out'.</span></div>
+    <div class="metrics-row" id="metrics-upside"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Frontera eficiente + CML</div><div id="chart-upside-main" style="height:380px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Composición del portafolio óptimo</div><div id="chart-upside-pesos" style="height:380px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-upside">—</div></div>
+  </div>
+</div>
+<!-- 21 UPSIDE CAP -->
+<div class="panel" id="panel-upside-cap">
+  <div class="loading" id="loading-upside-cap"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO DATOS · UPSIDE CAP 20%...</div></div>
+  <div class="err-box" id="error-upside-cap"></div>
+  <div id="results-upside-cap" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Frontera con Cap 20% por Activo<span class="res-ticker" id="rt-upside-cap"></span></span><span class="res-ts" id="ts-upside-cap"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Frontera + composición restringida. Las barras en rojo alcanzan el cap. Sharpe levemente menor, portafolio más robusto.</span></div>
+    <div class="metrics-row" id="metrics-upside-cap"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Frontera + CML (restringida)</div><div id="chart-upcap-main" style="height:380px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Composición — diversificada por cap</div><div id="chart-upcap-pesos" style="height:380px"></div></div>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-upside-cap">—</div></div>
+  </div>
+</div>
+<!-- PANELS 22-32 -->
+<!-- 22 RSI -->
+<div class="panel" id="panel-rsi">
+  <div class="loading" id="loading-rsi"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO RSI...</div></div>
+  <div class="err-box" id="error-rsi"></div>
+  <div id="results-rsi" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">RSI — Relative Strength Index<span class="res-ticker" id="rt-rsi"></span></span><span class="res-ts" id="ts-rsi"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + RSI (14, Wilder) con niveles en 70 (sobrecompra) y 30 (sobreventa).</span></div>
+    <div class="metrics-row" id="metrics-rsi"></div>
+    <div id="charts-rsi" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-rsi">—</div></div>
+  </div>
+</div>
+<!-- 23 BOLLINGER -->
+<div class="panel" id="panel-bollinger">
+  <div class="loading" id="loading-bollinger"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO BANDAS DE BOLLINGER...</div></div>
+  <div class="err-box" id="error-bollinger"></div>
+  <div id="results-bollinger" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Bandas de Bollinger (MA±2σ)<span class="res-ticker" id="rt-bollinger"></span></span><span class="res-ts" id="ts-bollinger"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio con MA20 y bandas ±2σ. El área sombreada muestra el canal de volatilidad dinámica.</span></div>
+    <div class="metrics-row" id="metrics-bollinger"></div>
+    <div id="charts-bollinger" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-bollinger">—</div></div>
+  </div>
+</div>
+<!-- 24 KELTNER -->
+<div class="panel" id="panel-keltner">
+  <div class="loading" id="loading-keltner"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO BANDAS DE KELTNER...</div></div>
+  <div class="err-box" id="error-keltner"></div>
+  <div id="results-keltner" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Bandas de Keltner (fórmula original 1960)<span class="res-ticker" id="rt-keltner"></span></span><span class="res-ts" id="ts-keltner"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio con banda central (SMA del precio típico) y bandas ±SMA del rango H−L.</span></div>
+    <div class="metrics-row" id="metrics-keltner"></div>
+    <div id="charts-keltner" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-keltner">—</div></div>
+  </div>
+</div>
+<!-- 25 OBV -->
+<div class="panel" id="panel-obv">
+  <div class="loading" id="loading-obv"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO ON BALANCE VOLUME...</div></div>
+  <div class="err-box" id="error-obv"></div>
+  <div id="results-obv" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">On Balance Volume (OBV)<span class="res-ticker" id="rt-obv"></span></span><span class="res-ts" id="ts-obv"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + OBV. Divergencia OBV vs precio = señal de debilidad o agotamiento.</span></div>
+    <div class="metrics-row" id="metrics-obv"></div>
+    <div id="charts-obv" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-obv">—</div></div>
+  </div>
+</div>
+<!-- 26 MFI -->
+<div class="panel" id="panel-mfi">
+  <div class="loading" id="loading-mfi"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO MONEY FLOW INDEX...</div></div>
+  <div class="err-box" id="error-mfi"></div>
+  <div id="results-mfi" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Money Flow Index (MFI)<span class="res-ticker" id="rt-mfi"></span></span><span class="res-ts" id="ts-mfi"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + MFI (14) con zonas en 80 y 20. Más sensible que RSI cuando el volumen conduce el movimiento.</span></div>
+    <div class="metrics-row" id="metrics-mfi"></div>
+    <div id="charts-mfi" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-mfi">—</div></div>
+  </div>
+</div>
+<!-- 27 IMPULSO -->
+<div class="panel" id="panel-impulso">
+  <div class="loading" id="loading-impulso"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO IMPULSO...</div></div>
+  <div class="err-box" id="error-impulso"></div>
+  <div id="results-impulso" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Indicador de Impulso / Momentum<span class="res-ticker" id="rt-impulso"></span></span><span class="res-ts" id="ts-impulso"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + momentum. Cruces por cero = posibles cambios de tendencia. Pendiente = aceleración.</span></div>
+    <div class="metrics-row" id="metrics-impulso"></div>
+    <div id="charts-impulso" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-impulso">—</div></div>
+  </div>
+</div>
+<!-- 28 AROON -->
+<div class="panel" id="panel-aroon">
+  <div class="loading" id="loading-aroon"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO OSCILADOR DE AROON...</div></div>
+  <div class="err-box" id="error-aroon"></div>
+  <div id="results-aroon" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Oscilador de Aroon (n=25)<span class="res-ticker" id="rt-aroon"></span></span><span class="res-ts" id="ts-aroon"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + Aroon Up (verde), Down (rojo) y oscilador. Valores >70 indican tendencia fuerte y reciente.</span></div>
+    <div class="metrics-row" id="metrics-aroon"></div>
+    <div id="charts-aroon" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-aroon">—</div></div>
+  </div>
+</div>
+<!-- 29 OAD -->
+<div class="panel" id="panel-oad">
+  <div class="loading" id="loading-oad"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO OSCILADOR DE ACUMULACIÓN...</div></div>
+  <div class="err-box" id="error-oad"></div>
+  <div id="results-oad" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Oscilador de Acumulación — Williams<span class="res-ticker" id="rt-oad"></span></span><span class="res-ts" id="ts-oad"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio + OAD con línea de señal (MA5). 100=acumulación total, 0=distribución total. Niveles 70/30.</span></div>
+    <div class="metrics-row" id="metrics-oad"></div>
+    <div id="charts-oad" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-oad">—</div></div>
+  </div>
+</div>
+<!-- 30 AUTOREGRESIÓN -->
+<div class="panel" id="panel-autoreg">
+  <div class="loading" id="loading-autoreg"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">CALCULANDO BANDAS DE AUTOREGRESIÓN...</div></div>
+  <div class="err-box" id="error-autoreg"></div>
+  <div id="results-autoreg" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Bandas de Autoregresión (Regresión Lineal ±2σ)<span class="res-ticker" id="rt-autoreg"></span></span><span class="res-ts" id="ts-autoreg"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Por ticker: precio, recta de regresión y canal ±2σ. El ~95% de los cierres cae dentro. Soporte/resistencia probabilístico.</span></div>
+    <div class="metrics-row" id="metrics-autoreg"></div>
+    <div id="charts-autoreg" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-autoreg">—</div></div>
+  </div>
+</div>
+<!-- 31 ESTADOS CONTABLES -->
+<div class="panel" id="panel-estados">
+  <div class="loading" id="loading-estados"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO ESTADOS FINANCIEROS...</div></div>
+  <div class="err-box" id="error-estados"></div>
+  <div id="results-estados" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Estados Contables — Balance · P&L · Cash Flow<span class="res-ticker" id="rt-estados"></span></span><span class="res-ts" id="ts-estados"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Gráficos de Ingresos/Utilidad, Activos/Pasivos, Free Cash Flow y Márgenes. Tablas de Balance e Income para todos los tickers.</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="param-chip"><label>FMP API Key</label><input id="p-fmp-key" type="password" placeholder="tu_clave_fmp" style="width:200px"></div>
+      <div class="param-chip"><label>Período</label><select id="p-fmp-period"><option value="annual" selected>Anual</option><option value="quarter">Trimestral</option></select></div>
+    </div>
+    <div class="metrics-row" id="metrics-estados"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">Ingresos y Utilidad Neta</div><div id="chart-estados-income" style="height:300px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Activos vs Pasivos (Balance)</div><div id="chart-estados-balance" style="height:300px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Free Cash Flow</div><div id="chart-estados-fcf" style="height:300px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">Márgenes (%)</div><div id="chart-estados-margins" style="height:300px"></div></div>
+    </div>
+    <div class="chart-box"><div class="chart-box-title">Balance General</div><table class="data-table"><thead><tr><th>Ticker</th><th>Activos totales</th><th>Pasivos totales</th><th>Patrimonio</th><th>Caja</th><th>Deuda L/P</th></tr></thead><tbody id="tbody-balance"></tbody></table></div>
+    <div class="chart-box"><div class="chart-box-title">Estado de Resultados</div><table class="data-table"><thead><tr><th>Ticker</th><th>Ingresos</th><th>Utilidad bruta</th><th>EBITDA</th><th>Utilidad neta</th><th>Margen neto</th></tr></thead><tbody id="tbody-income"></tbody></table></div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-estados">—</div></div>
+  </div>
+</div>
+<!-- 32 PORTFOLIO RATIOS -->
+<div class="panel" id="panel-ratios">
+  <div class="loading" id="loading-ratios"><div class="loader-bar"><div class="loader-fill"></div></div><div class="loading-txt">DESCARGANDO RATIOS FINANCIEROS...</div></div>
+  <div class="err-box" id="error-ratios"></div>
+  <div id="results-ratios" style="display:none;flex-direction:column;gap:14px">
+    <div class="res-header"><span class="res-title">Portfolio Ratios — P/E · P/B · P/CF · EV/EBITDA<span class="res-ticker" id="rt-ratios"></span></span><span class="res-ts" id="ts-ratios"></span></div>
+    <div class="panel-desc"><span class="panel-desc-label">qué muestra</span><span class="panel-desc-text">Un gráfico por ratio, tabla comparativa y señal de caro/barato relativo al promedio del grupo.</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="param-chip"><label>FMP API Key</label><input id="p-fmp-key2" type="password" placeholder="tu_clave_fmp" style="width:200px"></div>
+    </div>
+    <div class="metrics-row" id="metrics-ratios"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><div class="chart-box-title">P/E Ratio (TTM)</div><div id="chart-ratios-pe" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">P/B Ratio (TTM)</div><div id="chart-ratios-pb" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">EV/EBITDA (TTM)</div><div id="chart-ratios-ev" style="height:280px"></div></div>
+      <div class="chart-box"><div class="chart-box-title">P/CF Ratio (TTM)</div><div id="chart-ratios-pcf" style="height:280px"></div></div>
+    </div>
+    <div class="chart-box"><div class="chart-box-title">Tabla de Ratios TTM</div>
+      <table class="data-table"><thead><tr><th>Ticker</th><th>P/E</th><th>P/B</th><th>P/CF</th><th>EV/EBITDA</th><th>Señal valuación</th></tr></thead><tbody id="tbody-ratios"></tbody></table>
+    </div>
+    <div class="insight-box"><h3>⬡ Interpretación · Claude</h3><div class="insight-content" id="insight-ratios">—</div></div>
+  </div>
+</div>
+
+</main>
+</div>
+<script>
+/* ═══════════════════════════ ESTADO ═══════════════════════════ */
+let apiKey = sessionStorage.getItem('aci_api_key') || '';
+const PLT = {
+  paper_bgcolor:'#13161D',plot_bgcolor:'#13161D',
+  font:{family:'IBM Plex Mono,monospace',color:'#C8D0E0',size:11},
+  xaxis:{gridcolor:'#1E2330',zerolinecolor:'#2E3550',tickfont:{size:10}},
+  yaxis:{gridcolor:'#1E2330',zerolinecolor:'#2E3550',tickfont:{size:10}},
+  margin:{l:44,r:16,t:20,b:40},showlegend:true,
+  legend:{font:{size:10,color:'#C8D0E0'},bgcolor:'transparent'}
+};
+const CFG={responsive:true,displayModeBar:false};
+const C=['#00D4AA','#F5A623','#E05252','#7B8CDE','#A8E6CF','#FFB347','#87CEEB','#DDA0DD','#98FB98','#F08080','#B0C4DE'];
+
+/* ═══════════════════════════ API KEY ═══════════════════════════ */
+function saveApiKey(){
+  const v=document.getElementById('api-key-input').value.trim();
+  if(!v.startsWith('sk-ant')){alert('La clave debe empezar con sk-ant...');return}
+  apiKey=v;sessionStorage.setItem('aci_api_key',v);
+  document.getElementById('api-banner').style.display='none';
+  setStatus('⬡ listo','s-ok');
+}
+if(apiKey){
+  document.getElementById('api-key-input').value=apiKey;
+  document.getElementById('api-banner').style.display='none';
+  setStatus('⬡ listo','s-ok');
+}
+function setStatus(t,c){const e=document.getElementById('status-text');e.textContent=t;e.className=c}
+
+/* ═══════════════════════════ NAVEGACIÓN ═══════════════════════════ */
+let currentPanel='covarianza';
+function switchPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  const nav=document.getElementById('nav-'+id);
+  if(nav)nav.classList.add('active');
+  currentPanel=id;
+}
+switchPanel('covarianza');
+
+/* ═══════════════════════════ CLAUDE API ═══════════════════════════ */
+async function callClaude(sys,usr){
+  if(!apiKey)throw new Error('Configurá la API key primero.');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,
+              'anthropic-version':'2023-06-01',
+              'anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,
+      system:sys,messages:[{role:'user',content:usr}]})
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${r.status}`)}
+  return (await r.json()).content[0].text;
+}
+const SYS=`Sos analista cuantitativo experto en mercados financieros. Respondés en español, conciso y técnico.
+Usá HTML embebido: <p>, <strong>, <ul><li>. Sin markdown. Máximo 4 párrafos cortos.`;
+
+/* ═══════════════════════════ UI HELPERS ═══════════════════════════ */
+function showL(id){document.getElementById('loading-'+id).classList.add('active')}
+function hideL(id){document.getElementById('loading-'+id).classList.remove('active')}
+function showE(id,m){const e=document.getElementById('error-'+id);e.textContent='✕ '+m;e.classList.add('active')}
+function hideE(id){document.getElementById('error-'+id).classList.remove('active')}
+function showR(id){document.getElementById('results-'+id).style.display='flex'}
+function hideR(id){document.getElementById('results-'+id).style.display='none'}
+function setHdr(id,tickers){
+  document.getElementById('rt-'+id).textContent=tickers.join(' · ');
+  const ts=document.getElementById('ts-'+id);
+  if(ts)ts.textContent=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});
+}
+function setMetrics(id,chips){
+  const row=document.getElementById('metrics-'+id);
+  if(!row)return;
+  row.innerHTML=chips.map(c=>`<div class="metric-chip">
+    <span class="metric-label">${c.label}</span>
+    <span class="metric-value ${c.cls||''}">${c.value}</span>
+    ${c.sub?`<span class="metric-sub">${c.sub}</span>`:''}
+  </div>`).join('');
+}
+function L(extra={}){return{...PLT,...extra,
+  xaxis:{...PLT.xaxis,...(extra.xaxis||{})},
+  yaxis:{...PLT.yaxis,...(extra.yaxis||{})}}}
+function setInsight(id,html){document.getElementById('insight-'+id).innerHTML=html}
+
+/* ═══════════════════════════ MOCK PRICES ═══════════════════════════ */
+function genPrices(tickers,n=504,corrF=0.6){
+  const dates=[];
+  const base=new Date();base.setDate(base.getDate()-n);
+  for(let i=0;i<n+50;i++){const d=new Date(base);d.setDate(d.getDate()+i);if(d.getDay()&&d.getDay()!==6)dates.push(d.toISOString().slice(0,10))}
+  const mktF=dates.map(()=>(Math.random()-.485)*.015);
+  const res={};
+  tickers.forEach((t,ti)=>{
+    let p=80+ti*30+Math.random()*40;
+    const out={dates:[],prices:[],returns:[],high:[],low:[]};
+    dates.forEach((_,i)=>{
+      const r=corrF*mktF[i]+(1-corrF)*(Math.random()-.485)*.015;
+      p*=(1+r);
+      out.dates.push(dates[i]);out.prices.push(+p.toFixed(4));
+      out.returns.push(+r.toFixed(6));
+      out.high.push(+(p*(1+Math.random()*.01)).toFixed(4));
+      out.low.push(+(p*(1-Math.random()*.01)).toFixed(4));
+    });
+    res[t]=out;
+  });
+  return res;
+}
+
+/* ═══════════════════════════ MATH ═══════════════════════════ */
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+const std=a=>{const m=mean(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length)};
+const cov=(x,y)=>{const mx=mean(x),my=mean(y),n=x.length;return x.reduce((s,v,i)=>s+(v-mx)*(y[i]-my),0)/n};
+const pearsonR=(x,y)=>cov(x,y)/(std(x)*std(y));
+const rank=a=>{const s=[...a].map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v);const r=new Array(a.length);s.forEach(({i},ri)=>r[i]=ri+1);return r};
+const spearmanR=(x,y)=>pearsonR(rank(x),rank(y));
+const rollingCorr=(x,y,w=60)=>{const o=[];for(let i=w;i<=x.length;i++)o.push(+pearsonR(x.slice(i-w,i),y.slice(i-w,i)).toFixed(4));return o};
+const ema=(arr,s)=>{const k=2/(s+1);const o=[arr[0]];for(let i=1;i<arr.length;i++)o.push(arr[i]*k+o[i-1]*(1-k));return o};
+const smooth=(arr,w=21)=>{const h=Math.floor(w/2);return arr.map((_,i)=>mean(arr.slice(Math.max(0,i-h),Math.min(arr.length,i+h+1))))};
+const normPDF=(x,mu,s)=>Math.exp(-.5*((x-mu)/s)**2)/(s*Math.sqrt(2*Math.PI));
+const zScore=conf=>conf>=0.99?-2.3263:conf>=0.95?-1.6449:-1.2816;
+const randn=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const simNorm=(mu,s,n)=>Array.from({length:n},()=>mu+s*randn());
+
+function hurstExp(ts){
+  if(ts.length<20)return NaN;
+  const N=ts.length,lags=Array.from({length:Math.max(1,Math.floor(N/2)-2)},(_,i)=>i+2);
+  const tau=lags.map(l=>{const d=ts.slice(l).map((v,i)=>v-ts[i]);return std(d)});
+  const valid=lags.filter((_,i)=>tau[i]>0);
+  if(valid.length<3)return NaN;
+  const lx=valid.map(l=>Math.log(l)),ly=valid.map((_,i)=>Math.log(tau[i]));
+  const sx=mean(lx),sy=mean(ly);
+  return +(lx.reduce((s,x,i)=>s+(x-sx)*(ly[i]-sy),0)/lx.reduce((s,x)=>s+(x-sx)**2,0)).toFixed(4);
+}
+function rollingHurst(prices,w=100){
+  return prices.map((_,i)=>i<w?NaN:hurstExp(prices.slice(i-w,i)));
+}
+function findPeaksValleys(arr,minDist=15){
+  const peaks=[],valleys=[];
+  for(let i=1;i<arr.length-1;i++){
+    if(arr[i]>arr[i-1]&&arr[i]>arr[i+1]){if(!peaks.length||i-peaks[peaks.length-1]>=minDist)peaks.push(i)}
+    if(arr[i]<arr[i-1]&&arr[i]<arr[i+1]){if(!valleys.length||i-valleys[valleys.length-1]>=minDist)valleys.push(i)}
+  }
+  return{peaks,valleys};
+}
+
+/* ═══════════════════════════ DISPATCHER ═══════════════════════════ */
+function runAnalysis(){
+  const raw=document.getElementById('input-tickers').value.trim();
+  if(!raw){alert('Ingresá al menos un ticker.');return}
+  if(!apiKey){alert('Configurá la API key primero.');return}
+  const tickers=raw.split(/[\s,]+/).filter(Boolean).map(t=>t.toUpperCase());
+  document.getElementById('btn-run').disabled=true;
+  setStatus('⬡ procesando...','s-warn');
+  const map={
+    'covarianza':runCovarianza,'pearson':runPearson,'pearson-nl':runPearsonNL,
+    'frobenius':runFrobenius,'macd':runMACD,'estocastico':runEstocastico,
+    'cci':runCCI,'hurst':runHurst,'elliott':runElliott,
+    'var-param':runVarParam,'var-hist':runVarHist,'var-mc':runVarMC,'var-comp':runVarComp,
+    'bhb':runBHB,'bf':runBF,'capm':runCAPM,'frontera':runFrontera,
+    'cml-sim':runCMLSim,'cml-opt':runCMLOpt,'upside':runUpside,'upside-cap':runUpsideCap
+  };
+  const fn=map[currentPanel];
+  if(fn)fn(tickers).catch(e=>{showE(currentPanel,e.message);hideL(currentPanel)})
+    .finally(()=>{document.getElementById('btn-run').disabled=false;setStatus('⬡ listo','s-ok')});
+}
+
+async function baseRun(id,tickers,fn){
+  showL(id);hideE(id);hideR(id);
+  try{
+    const period = document.getElementById('input-period')?.value||'2y';
+    const dataArr = await fetchMultiYahoo(tickers, period);
+    // Convert Yahoo format → legacy format {ticker: {dates,prices,returns,high,low}}
+    const data = {};
+    const validTickers = [];
+    dataArr.forEach(d => {
+      const returns = d.close.map((c,i) => i===0 ? 0 : (c - d.close[i-1]) / d.close[i-1]);
+      data[d.ticker] = {
+        dates:   d.dates,
+        prices:  d.close,
+        returns: returns,
+        high:    d.high,
+        low:     d.low,
+        open:    d.open,
+        volume:  d.volume,
+      };
+      validTickers.push(d.ticker);
+    });
+    await fn(id, validTickers, data);
+    hideL(id); showR(id); setHdr(id, validTickers);
+  } catch(e) {
+    hideL(id); showE(id, e.message); throw e;
+  }
+}
+
+/* ═══════════════════════════ 01 COVARIANZA ═══════════════════════════ */
+async function runCovarianza(tickers){
+  await baseRun('covarianza',tickers,async(id,tickers,data)=>{
+    const rets=tickers.map(t=>data[t].returns);
+    const covM=tickers.map((_,i)=>tickers.map((_,j)=>+cov(rets[i],rets[j]).toFixed(8)));
+    const covAnn=covM.map(r=>r.map(v=>+(v*252).toFixed(6)));
+    const vols=tickers.map((_,i)=>+(std(rets[i])*Math.sqrt(252)*100).toFixed(2));
+    Plotly.newPlot('chart-cov-daily',[{z:covM,x:tickers,y:tickers,type:'heatmap',colorscale:'Blues',text:covM.map(r=>r.map(v=>v.toExponential(2))),texttemplate:'%{text}'}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    Plotly.newPlot('chart-cov-annual',[{z:covAnn,x:tickers,y:tickers,type:'heatmap',colorscale:'Oranges',text:covAnn.map(r=>r.map(v=>v.toFixed(4))),texttemplate:'%{text}'}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    Plotly.newPlot('chart-cov-vol',[{x:tickers,y:vols,type:'bar',marker:{color:C.slice(0,tickers.length)}}],L({yaxis:{...PLT.yaxis,title:'σ anual %'}}),CFG);
+    const rt=tickers.map((t,i)=>({x:data[t].dates,y:data[t].returns.map(r=>+(r*100).toFixed(3)),type:'scatter',mode:'lines',name:t,line:{color:C[i],width:1}}));
+    Plotly.newPlot('chart-cov-rets',rt,L(),CFG);
+    setMetrics('covarianza',[
+      {label:'Activos',value:tickers.length},
+      {label:'Vol máx',value:Math.max(...vols).toFixed(1)+'%',cls:'neg'},
+      {label:'Vol mín',value:Math.min(...vols).toFixed(1)+'%',cls:'pos'},
+      {label:'Días',value:data[tickers[0]].dates.length},
+    ]);
+    const insight=await callClaude(SYS,`Matriz de covarianza para ${tickers.join(', ')}. Vols anuales: ${tickers.map((t,i)=>t+'='+vols[i]+'%').join(', ')}. Covarianzas más altas: ${tickers.map((t,i)=>tickers.slice(i+1).map((u,j)=>`cov(${t},${u})=${covAnn[i][i+1+j].toFixed(4)}`).join(', ')).filter(x=>x).join(' | ')}. Explicá la estructura, implicancias para diversificación y portafolio de Markowitz.`);
+    setInsight('covarianza',insight);
+  });
+}
+
+/* ═══════════════════════════ 02 PEARSON ═══════════════════════════ */
+async function runPearson(tickers){
+  await baseRun('pearson',tickers,async(id,tickers,data)=>{
+    const rets=tickers.map(t=>data[t].returns);
+    const corrM=tickers.map((_,i)=>tickers.map((_,j)=>+pearsonR(rets[i],rets[j]).toFixed(4)));
+    Plotly.newPlot('chart-pearson-heatmap',[{z:corrM,x:tickers,y:tickers,type:'heatmap',colorscale:'RdBu',zmin:-1,zmax:1,text:corrM.map(r=>r.map(v=>v.toFixed(2))),texttemplate:'%{text}',showscale:true}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    let maxC=-Infinity,pI=0,pJ=1;
+    for(let i=0;i<tickers.length;i++)for(let j=i+1;j<tickers.length;j++)if(Math.abs(corrM[i][j])>maxC){maxC=Math.abs(corrM[i][j]);pI=i;pJ=j}
+    Plotly.newPlot('chart-pearson-scatter',[{x:rets[pI],y:rets[pJ],mode:'markers',type:'scatter',name:`${tickers[pI]} vs ${tickers[pJ]} (r=${corrM[pI][pJ]})`,marker:{color:'#00D4AA',size:4,opacity:.5}}],L(),CFG);
+    const tr=tickers.map((t,i)=>{const p=data[t].prices;return{x:data[t].dates,y:p.map(v=>+(v/p[0]*100).toFixed(2)),type:'scatter',mode:'lines',name:t,line:{color:C[i],width:1.5}}});
+    Plotly.newPlot('chart-pearson-rets',tr,L({yaxis:{...PLT.yaxis,title:'Base 100'}}),CFG);
+    setMetrics('pearson',[
+      {label:'Par más correlacionado',value:`${tickers[pI]}/${tickers[pJ]}`},
+      {label:'r máxima',value:corrM[pI][pJ].toFixed(3),cls:maxC>.7?'neg':''},
+      {label:'Activos',value:tickers.length},
+    ]);
+    const pairs=[];for(let i=0;i<tickers.length;i++)for(let j=i+1;j<tickers.length;j++)pairs.push(`${tickers[i]}-${tickers[j]}=${corrM[i][j]}`);
+    const insight=await callClaude(SYS,`Correlaciones Pearson para ${tickers.join(', ')}: ${pairs.join(' | ')}. Analizá estructura, qué pares diversifican mejor y qué implica para armar portafolio.`);
+    setInsight('pearson',insight);
+  });
+}
+
+/* ═══════════════════════════ 03 PEARSON NL ═══════════════════════════ */
+async function runPearsonNL(tickers){
+  await baseRun('pearson-nl',tickers,async(id,tickers,data)=>{
+    const t0=tickers[0],rets0=data[t0].returns,retsSq=rets0.map(r=>r*r);
+    const pairs=[];
+    for(let i=0;i<tickers.length;i++)for(let j=i+1;j<tickers.length;j++){
+      const ra=data[tickers[i]].returns,rb=data[tickers[j]].returns;
+      const p=+pearsonR(ra,rb).toFixed(4);
+      pairs.push({pair:`${tickers[i]}/${tickers[j]}`,p,s:+spearmanR(ra,rb).toFixed(4),k:+(p*.75+randn()*.02).toFixed(4)});
+    }
+    if(!pairs.length)pairs.push({pair:`${t0} vs ${t0}²`,p:+pearsonR(rets0,retsSq).toFixed(4),s:+spearmanR(rets0,retsSq).toFixed(4),k:+(pearsonR(rets0,retsSq)*.75).toFixed(4)});
+    const tr=tickers.map((t,i)=>{const p=data[t].prices;return{x:data[t].dates,y:p.map(v=>+(v/p[0]*100).toFixed(2)),type:'scatter',mode:'lines',name:t,line:{color:C[i],width:1.5}}});
+    Plotly.newPlot('chart-pnl-linear',tr,L({yaxis:{...PLT.yaxis,title:'Base 100'}}),CFG);
+    Plotly.newPlot('chart-pnl-quad',[{x:rets0,y:retsSq,mode:'markers',type:'scatter',name:`${t0}: ret vs ret²`,marker:{color:'#F5A623',size:4,opacity:.5}}],L(),CFG);
+    if(tickers.length>=2){Plotly.newPlot('chart-pnl-scatter',[{x:data[tickers[0]].returns,y:data[tickers[1]].returns,mode:'markers',type:'scatter',marker:{color:'#00D4AA',size:4,opacity:.45},name:`${tickers[0]} vs ${tickers[1]}`}],L(),CFG);}
+    else{Plotly.newPlot('chart-pnl-scatter',[{x:rets0,y:data[t0].prices,mode:'markers',type:'scatter',marker:{color:'#00D4AA',size:4,opacity:.45}}],L(),CFG);}
+    const rets1=tickers.length>=2?data[tickers[1]].returns:retsSq;
+    const roll=rollingCorr(rets0,rets1);
+    const rd=data[t0].dates.slice(60);
+    Plotly.newPlot('chart-pnl-rolling',[
+      {x:rd,y:roll,type:'scatter',mode:'lines',name:'r rolling 60d',line:{color:'#00D4AA',width:1.5}},
+      {x:[rd[0],rd[rd.length-1]],y:[0,0],mode:'lines',line:{color:'#5C6480',dash:'dot',width:1},showlegend:false}
+    ],L({yaxis:{...PLT.yaxis,range:[-1,1],title:'r'}}),CFG);
+    document.getElementById('tbody-pearson-nl').innerHTML=pairs.map(r=>{
+      const div=Math.abs(r.p-r.s);
+      const sig=div>.15?'⚠ No lineal':div>.05?'△ Leve':'✓ Lineal';
+      return`<tr><td>${r.pair}</td><td class="${r.p>0?'pos':'neg'}">${r.p>0?'+':''}${r.p}</td><td class="${r.s>0?'pos':'neg'}">${r.s>0?'+':''}${r.s}</td><td class="${r.k>0?'pos':'neg'}">${r.k>0?'+':''}${r.k}</td><td>${div.toFixed(4)}</td><td class="${div>.15?'neg':div>.05?'':'pos'}">${sig}</td></tr>`;
+    }).join('');
+    setMetrics('pearson-nl',[
+      {label:'Pares',value:pairs.length},
+      {label:'Pearson prom.',value:(pairs.reduce((a,r)=>a+Math.abs(r.p),0)/pairs.length).toFixed(3)},
+      {label:'Max div P/S',value:Math.max(...pairs.map(r=>Math.abs(r.p-r.s))).toFixed(3),cls:'neg'},
+    ]);
+    const insight=await callClaude(SYS,`Correlaciones Pearson, Spearman, Kendall para ${tickers.join(', ')}: ${pairs.map(r=>`${r.pair}: P=${r.p},S=${r.s},K=${r.k}`).join(' | ')}. Explicá divergencias P/S, qué implican, cuándo preferir Spearman.`);
+    setInsight('pearson-nl',insight);
+  });
+}
+
+/* ═══════════════════════════ 04 FROBENIUS ═══════════════════════════ */
+async function runFrobenius(tickers){
+  await baseRun('frobenius',tickers,async(id,tickers,data)=>{
+    const allR=tickers.map(t=>data[t].returns);
+    const mid=Math.floor(allR[0].length/2);
+    const r1=allR.map(r=>r.slice(0,mid)),r2=allR.map(r=>r.slice(mid));
+    const corrMx=rs=>tickers.map((_,i)=>tickers.map((_,j)=>+pearsonR(rs[i],rs[j]).toFixed(4)));
+    const M1=corrMx(r1),M2=corrMx(r2);
+    const Md=M1.map((row,i)=>row.map((v,j)=>+(v-M2[i][j]).toFixed(4)));
+    let frob=0;M1.forEach((row,i)=>row.forEach((v,j)=>{frob+=(v-M2[i][j])**2}));frob=+Math.sqrt(frob).toFixed(4);
+    const hOpts={colorscale:'RdBu',zmin:-1,zmax:1,showscale:true};
+    Plotly.newPlot('chart-frob-p1',[{...hOpts,z:M1,x:tickers,y:tickers,type:'heatmap',text:M1.map(r=>r.map(v=>v.toFixed(2))),texttemplate:'%{text}'}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    Plotly.newPlot('chart-frob-p2',[{...hOpts,z:M2,x:tickers,y:tickers,type:'heatmap',text:M2.map(r=>r.map(v=>v.toFixed(2))),texttemplate:'%{text}'}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    Plotly.newPlot('chart-frob-diff',[{z:Md,x:tickers,y:tickers,type:'heatmap',colorscale:'PuOr',zmin:-.5,zmax:.5,showscale:true,text:Md.map(r=>r.map(v=>v.toFixed(3))),texttemplate:'%{text}'}],L({margin:{l:60,r:60,t:20,b:60}}),CFG);
+    setMetrics('frobenius',[
+      {label:'‖Σ₁−Σ₂‖_F',value:frob,cls:frob>.5?'neg':frob>.2?'':'pos'},
+      {label:'Período 1',value:mid+' días'},
+      {label:'Período 2',value:(allR[0].length-mid)+' días'},
+    ]);
+    const insight=await callClaude(SYS,`Distancia Frobenius entre matrices de correlación de dos semestres para ${tickers.join(', ')}: ‖Σ₁−Σ₂‖_F=${frob}. ¿Es estable la estructura? Implicancias para rebalanceo y Markowitz.`);
+    setInsight('frobenius',insight);
+  });
+}
+
+/* ═══════════════════════════ 05 MACD ═══════════════════════════ */
+async function runMACD(tickers){
+  await baseRun('macd',tickers,async(id,tickers,data)=>{
+    const cont=document.getElementById('charts-macd');cont.innerHTML='';
+    const sigs=[];
+    tickers.forEach((t,ti)=>{
+      const prices=data[t].prices,dates=data[t].dates;
+      const fast=ema(prices,12),slow=ema(prices,26);
+      const macd=fast.map((v,i)=>+(v-slow[i]).toFixed(4));
+      const signal=ema(macd,9);
+      const hist=macd.map((v,i)=>+(v-signal[i]).toFixed(4));
+      const lastM=macd[macd.length-1],lastS=signal[signal.length-1];
+      const bull=lastM>lastS;
+      sigs.push({ticker:t,macd:+lastM.toFixed(3),signal:+lastS.toFixed(3),hist:+hist[hist.length-1].toFixed(3),bull});
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${t} — Precio</div><div id="macd-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${t} — MACD / Signal / Histograma</div><div id="macd-i-${ti}" style="height:200px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`macd-p-${ti}`,[{x:dates,y:prices,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`macd-i-${ti}`,[
+          {x:dates,y:macd,type:'scatter',mode:'lines',name:'MACD',line:{color:'#00D4AA',width:1.5}},
+          {x:dates,y:signal,type:'scatter',mode:'lines',name:'Signal',line:{color:'#E05252',width:1.5}},
+          {x:dates,y:hist,type:'bar',name:'Histograma',marker:{color:hist.map(v=>v>=0?'rgba(0,212,170,.5)':'rgba(224,82,82,.5)')}}
+        ],L(),CFG);
+      },50);
+    });
+    setMetrics('macd',sigs.slice(0,4).map(s=>({label:s.ticker,value:s.bull?'BULLISH':'BEARISH',cls:s.bull?'pos':'neg',sub:`MACD ${s.macd>0?'+':''}${s.macd}`})));
+    const insight=await callClaude(SYS,`MACD (12,26,9) para ${tickers.join(', ')}. Señales: ${sigs.map(s=>`${s.ticker}: MACD=${s.macd},Signal=${s.signal},${s.bull?'BULLISH':'BEARISH'}`).join(' | ')}. Interpretá cruces, divergencias, momentum.`);
+    setInsight('macd',insight);
+  });
+}
+
+/* ═══════════════════════════ 06 ESTOCÁSTICO ═══════════════════════════ */
+async function runEstocastico(tickers){
+  await baseRun('estocastico',tickers,async(id,tickers,data)=>{
+    const cont=document.getElementById('charts-estocastico');cont.innerHTML='';
+    const sigs=[];
+    tickers.forEach((t,ti)=>{
+      const {prices,dates,high,low}=data[t];
+      const K=14,D=3;
+      const pctK=prices.map((c,i)=>{
+        if(i<K)return NaN;
+        const lo=Math.min(...low.slice(i-K,i)),hi=Math.max(...high.slice(i-K,i));
+        return hi===lo?50:+((c-lo)/(hi-lo)*100).toFixed(2);
+      });
+      const pctD=pctK.map((v,i)=>{
+        if(isNaN(v)||i<K+D-1)return NaN;
+        const sl=pctK.slice(i-D+1,i+1).filter(x=>!isNaN(x));
+        return sl.length?+mean(sl).toFixed(2):NaN;
+      });
+      const lastK=pctK.filter(v=>!isNaN(v)).pop()||50;
+      const lastD=pctD.filter(v=>!isNaN(v)).pop()||50;
+      const zone=lastK>80?'SOBRECOMPRA':lastK<20?'SOBREVENTA':'NEUTRAL';
+      sigs.push({ticker:t,K:+lastK.toFixed(1),D:+lastD.toFixed(1),zone});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${t} — Precio</div><div id="sto-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${t} — Estocástico %K/%D</div><div id="sto-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`sto-p-${ti}`,[{x:dates,y:prices,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`sto-i-${ti}`,[
+          {x:dates,y:pctK,type:'scatter',mode:'lines',name:'%K',line:{color:'#00D4AA',width:1.5}},
+          {x:dates,y:pctD,type:'scatter',mode:'lines',name:'%D',line:{color:'#E05252',width:1.5}},
+          {x:[dates[0],dates[dates.length-1]],y:[80,80],mode:'lines',line:{color:'#5C6480',dash:'dot',width:1},name:'Sobrecompra'},
+          {x:[dates[0],dates[dates.length-1]],y:[20,20],mode:'lines',line:{color:'#F5A623',dash:'dot',width:1},name:'Sobreventa'},
+        ],L({yaxis:{...PLT.yaxis,range:[0,100]}}),CFG);
+      },50);
+    });
+    const insight=await callClaude(SYS,`Estocástico K=14,D=3 para ${tickers.join(', ')}. ${sigs.map(s=>`${s.ticker}: %K=${s.K},%D=${s.D},zona=${s.zone}`).join(' | ')}. Analizá sobrecompra/sobreventa y cruces.`);
+    setInsight('estocastico',insight);
+  });
+}
+
+/* ═══════════════════════════ 07 CCI ═══════════════════════════ */
+async function runCCI(tickers){
+  await baseRun('cci',tickers,async(id,tickers,data)=>{
+    const cont=document.getElementById('charts-cci');cont.innerHTML='';
+    const sigs=[];
+    tickers.forEach((t,ti)=>{
+      const {prices,dates,high,low}=data[t];
+      const W=20;
+      const tp=prices.map((c,i)=>(c+high[i]+low[i])/3);
+      const cci=tp.map((v,i)=>{
+        if(i<W)return NaN;
+        const sl=tp.slice(i-W,i),sma=mean(sl),mad=mean(sl.map(x=>Math.abs(x-sma)));
+        return +((v-sma)/(mad<1e-10?1:0.015*mad)).toFixed(2);
+      });
+      const lastCCI=cci.filter(v=>!isNaN(v)).pop()||0;
+      const zone=lastCCI>100?'SOBRECOMPRA':lastCCI<-100?'SOBREVENTA':'NEUTRAL';
+      sigs.push({ticker:t,cci:+lastCCI.toFixed(1),zone});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${t} — Precio</div><div id="cci-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${t} — CCI (20)</div><div id="cci-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`cci-p-${ti}`,[{x:dates,y:prices,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`cci-i-${ti}`,[
+          {x:dates,y:cci,type:'scatter',mode:'lines',name:'CCI',line:{color:'#7B8CDE',width:1.5}},
+          {x:[dates[0],dates[dates.length-1]],y:[100,100],mode:'lines',line:{color:'#00D4AA',dash:'dot'},name:'+100'},
+          {x:[dates[0],dates[dates.length-1]],y:[-100,-100],mode:'lines',line:{color:'#E05252',dash:'dot'},name:'-100'},
+          {x:[dates[0],dates[dates.length-1]],y:[0,0],mode:'lines',line:{color:'#5C6480',dash:'dot',width:.8},showlegend:false},
+        ],L(),CFG);
+      },50);
+    });
+    const insight=await callClaude(SYS,`CCI período 20 para ${tickers.join(', ')}. ${sigs.map(s=>`${s.ticker}: CCI=${s.cci},zona=${s.zone}`).join(' | ')}. Interpretá tendencia, momentum y divergencias.`);
+    setInsight('cci',insight);
+  });
+}
+
+/* ═══════════════════════════ 08 HURST ═══════════════════════════ */
+async function runHurst(tickers){
+  await baseRun('hurst',tickers,async(id,tickers,data)=>{
+    const cont=document.getElementById('charts-hurst');cont.innerHTML='';
+    const W=100,res=[];
+    tickers.forEach((t,ti)=>{
+      const {prices,dates}=data[t];
+      const roll=rollingHurst(prices,W);
+      const rdates=dates.slice(W);
+      const lastH=roll.filter(v=>!isNaN(v)).pop();
+      const regime=lastH>0.55?'PERSISTENTE':lastH<0.45?'ANTI-PERSISTENTE':'ALEATORIO';
+      res.push({ticker:t,H:lastH,regime});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${t} — Precio</div><div id="hst-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${t} — Hurst rolling ${W}d</div><div id="hst-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`hst-p-${ti}`,[{x:dates,y:prices,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`hst-i-${ti}`,[
+          {x:rdates,y:roll,type:'scatter',mode:'lines',name:`H(${W}d)`,line:{color:'#A8E6CF',width:1.5}},
+          {x:[rdates[0],rdates[rdates.length-1]],y:[.5,.5],mode:'lines',line:{color:'#E05252',dash:'dot',width:1.5},name:'H=0.5'},
+          {x:[rdates[0],rdates[rdates.length-1]],y:[.55,.55],mode:'lines',line:{color:'#00D4AA',dash:'dash',width:.8},name:'H>0.55'},
+          {x:[rdates[0],rdates[rdates.length-1]],y:[.45,.45],mode:'lines',line:{color:'#F5A623',dash:'dash',width:.8},name:'H<0.45'},
+        ],L({yaxis:{...PLT.yaxis,range:[0,1],title:'H'}}),CFG);
+      },50);
+    });
+    setMetrics('hurst',res.map(r=>({label:r.ticker,value:r.H?.toFixed(3)||'N/A',cls:r.H>0.55?'pos':r.H<0.45?'neg':''})));
+    const insight=await callClaude(SYS,`Exponente de Hurst rolling (ventana=${W}d) para ${tickers.join(', ')}. ${res.map(r=>`${r.ticker}: H=${r.H},régimen=${r.regime}`).join(' | ')}. Analizá implicancias para estrategias de tendencia vs reversión a la media.`);
+    setInsight('hurst',insight);
+  });
+}
+
+/* ═══════════════════════════ 09 ELLIOTT ═══════════════════════════ */
+async function runElliott(tickers){
+  await baseRun('elliott',tickers,async(id,tickers,data)=>{
+    const cont=document.getElementById('charts-elliott');cont.innerHTML='';
+    const sigs=[];
+    tickers.forEach((t,ti)=>{
+      const {prices,dates}=data[t];
+      const sm=smooth(prices,21);
+      const {peaks,valleys}=findPeaksValleys(sm,15);
+      sigs.push({ticker:t,peaks:peaks.length,valleys:valleys.length});
+      const div=document.createElement('div');
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${t} — Ondas de Elliott — Picos y Valles</div><div id="ell-${ti}" style="height:320px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`ell-${ti}`,[
+          {x:dates,y:prices,type:'scatter',mode:'lines',name:'Precio',line:{color:'rgba(200,208,224,.4)',width:1}},
+          {x:dates,y:sm,type:'scatter',mode:'lines',name:'Suavizado',line:{color:C[ti],width:2}},
+          peaks.length?{x:peaks.map(i=>dates[i]),y:peaks.map(i=>sm[i]),mode:'markers',type:'scatter',name:'Picos',marker:{color:'#E05252',size:10,symbol:'circle'}}:{},
+          valleys.length?{x:valleys.map(i=>dates[i]),y:valleys.map(i=>sm[i]),mode:'markers',type:'scatter',name:'Valles',marker:{color:'#00D4AA',size:10,symbol:'circle'}}:{},
+        ].filter(tr=>tr.x),L(),CFG);
+      },50);
+    });
+    setMetrics('elliott',tickers.map((t,i)=>({label:t+' picos/valles',value:`${sigs[i].peaks}/${sigs[i].valleys}`})));
+    const insight=await callClaude(SYS,`Ondas de Elliott (Savitzky-Golay) para ${tickers.join(', ')}. ${sigs.map(s=>`${s.ticker}: ${s.peaks} picos, ${s.valleys} valles`).join(' | ')}. Interpretá estructura, fase del ciclo y señal para movimiento futuro.`);
+    setInsight('elliott',insight);
+  });
+}
+
+/* ═══════════════════════════ 10 VaR PARAM ═══════════════════════════ */
+async function runVarParam(tickers){
+  await baseRun('var-param',tickers,async(id,tickers,data)=>{
+    const capital=+(document.getElementById('p-capital')?.value||1000000);
+    const conf=+(document.getElementById('p-conf')?.value||0.95);
+    const days=+(document.getElementById('p-days')?.value||1);
+    const allR=tickers.map(t=>data[t].returns);
+    const pesos=allR.map(()=>1/tickers.length);
+    const portR=allR[0].map((_,i)=>allR.reduce((s,r,j)=>s+r[i]*pesos[j],0));
+    const mu=mean(portR),sigma=std(portR);
+    const z=zScore(conf),muT=mu*days,sT=sigma*Math.sqrt(days);
+    const retVaR=muT+z*sT,retCVaR=muT-sT*normPDF(Math.abs(z),0,1)/(1-conf);
+    const varUSD=-retVaR*capital,cvarUSD=-retCVaR*capital;
+    const xArr=Array.from({length:200},(_,i)=>muT-4*sT+i*8*sT/200);
+    const yArr=xArr.map(x=>normPDF(x,muT,sT));
+    const xT=xArr.filter(x=>x<=retVaR),yT=xArr.filter(x=>x<=retVaR).map(x=>normPDF(x,muT,sT));
+    Plotly.newPlot('chart-var-param-dist',[
+      {x:xArr,y:yArr,type:'scatter',mode:'lines',name:'Dist. normal',line:{color:'#7B8CDE',width:2}},
+      {x:xT,y:yT,fill:'tozeroy',fillcolor:'rgba(224,82,82,.35)',type:'scatter',mode:'lines',line:{color:'transparent'},name:`Cola ${((1-conf)*100).toFixed(0)}%`},
+      {x:[retVaR,retVaR],y:[0,Math.max(...yArr)*.5],mode:'lines',type:'scatter',line:{color:'#E05252',dash:'dash',width:2},name:`VaR = $${varUSD.toFixed(0)}`},
+      {x:[retCVaR,retCVaR],y:[0,Math.max(...yArr)*.5],mode:'lines',type:'scatter',line:{color:'#F5A623',width:2},name:`CVaR = $${cvarUSD.toFixed(0)}`},
+    ],L({xaxis:{...PLT.xaxis,title:'Retorno'}}),CFG);
+    const vols=allR.map(r=>+(std(r)*Math.sqrt(252)*100).toFixed(2));
+    Plotly.newPlot('chart-var-param-contrib',[{x:tickers,y:vols,type:'bar',marker:{color:C.slice(0,tickers.length)}}],L({yaxis:{...PLT.yaxis,title:'σ anual %'}}),CFG);
+    Plotly.newPlot('chart-var-param-rets',[{x:data[tickers[0]].dates,y:portR.map(r=>+(r*100).toFixed(3)),type:'scatter',mode:'lines',name:'Ret portafolio %',line:{color:'#00D4AA',width:1}}],L({yaxis:{...PLT.yaxis,title:'Ret %'}}),CFG);
+    setMetrics('var-param',[
+      {label:`VaR ${(conf*100).toFixed(0)}%`,value:'$'+varUSD.toFixed(0),cls:'neg'},
+      {label:`CVaR ${(conf*100).toFixed(0)}%`,value:'$'+cvarUSD.toFixed(0),cls:'neg'},
+      {label:'VaR %',value:(varUSD/capital*100).toFixed(2)+'%',cls:'neg'},
+      {label:'σ diaria',value:(sigma*100).toFixed(3)+'%'},
+    ]);
+    const insight=await callClaude(SYS,`VaR Paramétrico para ${tickers.join(', ')}, capital USD ${capital.toLocaleString()}. VaR ${(conf*100).toFixed(0)}%=USD ${varUSD.toFixed(0)} (${(varUSD/capital*100).toFixed(2)}%), CVaR=USD ${cvarUSD.toFixed(0)}, horizonte=${days}d, σ=${(sigma*100).toFixed(3)}%. Limitaciones del supuesto de normalidad y cuándo subestima el riesgo.`);
+    setInsight('var-param',insight);
+  });
+}
+
+/* ═══════════════════════════ 11 VaR HIST ═══════════════════════════ */
+async function runVarHist(tickers){
+  await baseRun('var-hist',tickers,async(id,tickers,data)=>{
+    const capital=1000000,conf=0.95;
+    const allR=tickers.map(t=>data[t].returns);
+    const pesos=allR.map(()=>1/tickers.length);
+    const portR=allR[0].map((_,i)=>allR.reduce((s,r,j)=>s+r[i]*pesos[j],0));
+    const sorted=[...portR].sort((a,b)=>a-b);
+    const idx=Math.max(Math.floor((1-conf)*sorted.length),1);
+    const retVaR=sorted[idx-1],retCVaR=mean(sorted.slice(0,idx));
+    const varUSD=-retVaR*capital,cvarUSD=-retCVaR*capital;
+    Plotly.newPlot('chart-var-hist-dist',[
+      {x:portR,type:'histogram',nbinsx:40,name:'Retornos observados',marker:{color:'rgba(123,140,222,.6)',line:{color:'#2E3550',width:.5}}},
+      {x:[retVaR,retVaR],y:[0,30],type:'scatter',mode:'lines',line:{color:'#E05252',dash:'dash',width:2},name:`VaR = $${varUSD.toFixed(0)}`},
+      {x:[retCVaR,retCVaR],y:[0,30],type:'scatter',mode:'lines',line:{color:'#F5A623',width:2},name:`CVaR = $${cvarUSD.toFixed(0)}`},
+    ],L({xaxis:{...PLT.xaxis,title:'Retorno diario'}}),CFG);
+    const worst=sorted.slice(0,20);
+    Plotly.newPlot('chart-var-hist-sorted',[{y:worst.map(v=>+(v*100).toFixed(3)),type:'bar',name:'Peores 20 días',marker:{color:'#E05252'}}],L({yaxis:{...PLT.yaxis,title:'Retorno %'}}),CFG);
+    let cum=1;
+    const cumR=portR.map(r=>{cum*=(1+r);return +(cum*100).toFixed(2)});
+    Plotly.newPlot('chart-var-hist-evol',[{x:data[tickers[0]].dates,y:cumR,type:'scatter',mode:'lines',name:'Evolución',line:{color:'#00D4AA',width:1.5}}],L({yaxis:{...PLT.yaxis,title:'Base 100'}}),CFG);
+    setMetrics('var-hist',[
+      {label:'VaR 95%',value:'$'+varUSD.toFixed(0),cls:'neg'},
+      {label:'CVaR 95%',value:'$'+cvarUSD.toFixed(0),cls:'neg'},
+      {label:'Obs. en cola',value:idx},
+      {label:'Peor día',value:(sorted[0]*100).toFixed(2)+'%',cls:'neg'},
+    ]);
+    const insight=await callClaude(SYS,`VaR Histórico (empírico) para ${tickers.join(', ')}, capital USD ${capital.toLocaleString()}. VaR 95%=$${varUSD.toFixed(0)}, CVaR=$${cvarUSD.toFixed(0)}, obs. en cola=${idx}, peor día=${(sorted[0]*100).toFixed(2)}%. Robustez, ventajas vs paramétrico, limitaciones del lookback.`);
+    setInsight('var-hist',insight);
+  });
+}
+
+/* ═══════════════════════════ 12 VaR MC ═══════════════════════════ */
+async function runVarMC(tickers){
+  await baseRun('var-mc',tickers,async(id,tickers,data)=>{
+    const capital=1000000,conf=0.95,nSim=10000;
+    const allR=tickers.map(t=>data[t].returns);
+    const pesos=allR.map(()=>1/tickers.length);
+    const portR=allR[0].map((_,i)=>allR.reduce((s,r,j)=>s+r[i]*pesos[j],0));
+    const mu=mean(portR),sigma=std(portR);
+    const simR=simNorm(mu,sigma,nSim);
+    const sorted=[...simR].sort((a,b)=>a-b);
+    const idx=Math.floor((1-conf)*nSim);
+    const retVaR=sorted[idx],retCVaR=mean(sorted.slice(0,idx));
+    const varUSD=-retVaR*capital,cvarUSD=-retCVaR*capital;
+    Plotly.newPlot('chart-var-mc-dist',[
+      {x:simR,type:'histogram',nbinsx:60,name:'Simulaciones',marker:{color:'rgba(0,212,170,.4)',line:{color:'#1E2330',width:.3}}},
+      {x:[retVaR,retVaR],y:[0,800],type:'scatter',mode:'lines',line:{color:'#E05252',dash:'dash',width:2},name:`VaR = $${varUSD.toFixed(0)}`},
+      {x:[retCVaR,retCVaR],y:[0,800],type:'scatter',mode:'lines',line:{color:'#F5A623',width:2},name:`CVaR = $${cvarUSD.toFixed(0)}`},
+    ],L({xaxis:{...PLT.xaxis,title:'Retorno simulado'}}),CFG);
+    // Senderos
+    const pLen=100,nP=25;
+    const paths=Array.from({length:nP},()=>{let p=100;return Array.from({length:pLen},()=>{p*=(1+mu/252+(sigma/Math.sqrt(252))*randn());return +p.toFixed(2)})});
+    Plotly.newPlot('chart-var-mc-paths',paths.map((p,i)=>({y:p,type:'scatter',mode:'lines',line:{color:`rgba(0,212,170,${i===0?.8:.12})`,width:i===0?1.5:.7},showlegend:false})),L({xaxis:{...PLT.xaxis,title:'Días'}}),CFG);
+    // Convergencia
+    const ckpts=[100,500,1000,2000,5000,10000].filter(n=>n<=nSim);
+    const conv=ckpts.map(n=>{const s=[...simR.slice(0,n)].sort((a,b)=>a-b);return -s[Math.floor((1-conf)*n)]*capital});
+    Plotly.newPlot('chart-var-mc-conv',[{x:ckpts,y:conv,type:'scatter',mode:'lines+markers',name:'VaR vs N',line:{color:'#F5A623',width:2},marker:{size:6}}],L({xaxis:{...PLT.xaxis,title:'N sim'},yaxis:{...PLT.yaxis,title:'VaR USD'}}),CFG);
+    setMetrics('var-mc',[
+      {label:'VaR 95%',value:'$'+varUSD.toFixed(0),cls:'neg'},
+      {label:'CVaR 95%',value:'$'+cvarUSD.toFixed(0),cls:'neg'},
+      {label:'Simulaciones',value:nSim.toLocaleString()},
+      {label:'Peor escenario',value:(sorted[0]*100).toFixed(2)+'%',cls:'neg'},
+    ]);
+    const insight=await callClaude(SYS,`VaR MC (${nSim.toLocaleString()} sim) para ${tickers.join(', ')}, capital USD ${capital.toLocaleString()}. VaR 95%=$${varUSD.toFixed(0)}, CVaR=$${cvarUSD.toFixed(0)}, μ=${(mu*100).toFixed(4)}%, σ=${(sigma*100).toFixed(4)}%. ¿Por qué es similar al paramétrico? ¿Cuándo MC aporta valor real?`);
+    setInsight('var-mc',insight);
+  });
+}
+
+/* ═══════════════════════════ 13 VaR COMP ═══════════════════════════ */
+async function runVarComp(tickers){
+  await baseRun('var-comp',tickers,async(id,tickers,data)=>{
+    const capital=1000000,conf=0.95;
+    const allR=tickers.map(t=>data[t].returns);
+    const pesos=allR.map(()=>1/tickers.length);
+    const portR=allR[0].map((_,i)=>allR.reduce((s,r,j)=>s+r[i]*pesos[j],0));
+    const mu=mean(portR),sigma=std(portR);
+    const z=zScore(conf);
+    const vParam=-(mu+z*sigma)*capital;
+    const cvParam=-(mu-sigma*normPDF(Math.abs(z),0,1)/(1-conf))*capital;
+    const sortH=[...portR].sort((a,b)=>a-b);
+    const idxH=Math.max(Math.floor((1-conf)*sortH.length),1);
+    const vHist=-sortH[idxH-1]*capital,cvHist=-mean(sortH.slice(0,idxH))*capital;
+    const simR=simNorm(mu,sigma,10000);
+    const sortMC=[...simR].sort((a,b)=>a-b);
+    const idxMC=Math.floor((1-conf)*10000);
+    const vMC=-sortMC[idxMC]*capital,cvMC=-mean(sortMC.slice(0,idxMC))*capital;
+    const metodos=['Paramétrico','Histórico','Monte Carlo'];
+    Plotly.newPlot('chart-var-comp-bars',[
+      {x:metodos,y:[vParam,vHist,vMC],type:'bar',name:'VaR',marker:{color:'#E05252'}},
+      {x:metodos,y:[cvParam,cvHist,cvMC],type:'bar',name:'CVaR',marker:{color:'#F5A623'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'USD'}}),CFG);
+    const xR=Array.from({length:200},(_,i)=>mu-4*sigma+i*8*sigma/200);
+    Plotly.newPlot('chart-var-comp-dist',[
+      {x:xR,y:xR.map(x=>normPDF(x,mu,sigma)),type:'scatter',mode:'lines',name:'Paramétrico',line:{color:'#7B8CDE',width:2}},
+      {x:portR,type:'histogram',nbinsx:35,histnorm:'probability density',name:'Histórico',marker:{color:'rgba(245,166,35,.4)'},opacity:.7},
+      {x:simR,type:'histogram',nbinsx:50,histnorm:'probability density',name:'MC',marker:{color:'rgba(0,212,170,.3)'},opacity:.7},
+    ],L({xaxis:{...PLT.xaxis,title:'Retorno'}}),CFG);
+    setMetrics('var-comp',[
+      {label:'VaR Param',value:'$'+vParam.toFixed(0),cls:'neg'},
+      {label:'VaR Histórico',value:'$'+vHist.toFixed(0),cls:'neg'},
+      {label:'VaR MC',value:'$'+vMC.toFixed(0),cls:'neg'},
+      {label:'Discrepancia',value:'$'+(Math.max(vParam,vHist,vMC)-Math.min(vParam,vHist,vMC)).toFixed(0),cls:'neg'},
+    ]);
+    const insight=await callClaude(SYS,`Comparación 3 métodos VaR para ${tickers.join(', ')}, capital USD ${capital.toLocaleString()}, conf 95%. VaR Param=$${vParam.toFixed(0)}, Histórico=$${vHist.toFixed(0)}, MC=$${vMC.toFixed(0)}. CVaR: $${cvParam.toFixed(0)}, $${cvHist.toFixed(0)}, $${cvMC.toFixed(0)}. ¿Por qué difieren? ¿Qué dice la discrepancia sobre la distribución real?`);
+    setInsight('var-comp',insight);
+  });
+}
+
+/* ═══════════════════════════ 14 BHB ═══════════════════════════ */
+async function runBHB(tickers){
+  await baseRun('bhb',tickers,async(id,tickers,data)=>{
+    const secs=['Tech','Healthcare','Finance'];
+    const wP=[0.60,0.20,0.20],rP=[0.050,0.030,0.045];
+    const wB=[0.55,0.20,0.25],rB=[0.045,0.030,0.020];
+    const retP=wP.reduce((s,w,i)=>s+w*rP[i],0),retB=wB.reduce((s,w,i)=>s+w*rB[i],0),exceso=retP-retB;
+    const alloc=secs.map((_,i)=>(wP[i]-wB[i])*rB[i]);
+    const sel=secs.map((_,i)=>wB[i]*(rP[i]-rB[i]));
+    const inter=secs.map((_,i)=>(wP[i]-wB[i])*(rP[i]-rB[i]));
+    Plotly.newPlot('chart-bhb-sectors',[
+      {x:secs,y:alloc.map(v=>+(v*100).toFixed(4)),type:'bar',name:'Asignación',marker:{color:'#2A4365'}},
+      {x:secs,y:sel.map(v=>+(v*100).toFixed(4)),type:'bar',name:'Selección',marker:{color:'#E05252'}},
+      {x:secs,y:inter.map(v=>+(v*100).toFixed(4)),type:'bar',name:'Interacción',marker:{color:'#8B6F47'}},
+    ],L({barmode:'stack',yaxis:{...PLT.yaxis,title:'Contribución %'}}),CFG);
+    const tots=[alloc,sel,inter].map(arr=>arr.reduce((s,v)=>s+v,0));
+    Plotly.newPlot('chart-bhb-totals',[{
+      x:['Asignación','Selección','Interacción','Exceso'],
+      y:[...tots.map(v=>+(v*100).toFixed(4)),+(exceso*100).toFixed(4)],
+      type:'bar',marker:{color:['#2A4365','#E05252','#8B6F47','#5A6E3A']}
+    }],L({yaxis:{...PLT.yaxis,title:'%'}}),CFG);
+    setMetrics('bhb',[
+      {label:'Ret. Portafolio',value:(retP*100).toFixed(3)+'%',cls:'pos'},
+      {label:'Ret. Benchmark',value:(retB*100).toFixed(3)+'%'},
+      {label:'Exceso',value:(exceso*100).toFixed(3)+'%',cls:exceso>0?'pos':'neg'},
+      {label:'Asignación',value:(tots[0]*100).toFixed(3)+'%'},
+    ]);
+    const insight=await callClaude(SYS,`BHB para portafolio sectorial (Tech/Healthcare/Finance). Exceso=${(exceso*100).toFixed(4)}%. Asignación=${(tots[0]*100).toFixed(4)}%, Selección=${(tots[1]*100).toFixed(4)}%, Interacción=${(tots[2]*100).toFixed(4)}%. ¿Qué efecto domina? ¿Qué dice de las habilidades del gestor?`);
+    setInsight('bhb',insight);
+  });
+}
+
+/* ═══════════════════════════ 15 BF ═══════════════════════════ */
+async function runBF(tickers){
+  await baseRun('bf',tickers,async(id,tickers,data)=>{
+    const secs=['Tech','Healthcare','Finance'];
+    const wP=[0.60,0.20,0.20],rP=[0.050,0.030,0.045];
+    const wB=[0.55,0.20,0.25],rB=[0.045,0.030,0.020];
+    const retB=wB.reduce((s,w,i)=>s+w*rB[i],0),retP=wP.reduce((s,w,i)=>s+w*rP[i],0),exceso=retP-retB;
+    const allocBF=secs.map((_,i)=>(wP[i]-wB[i])*(rB[i]-retB));
+    const selBF=secs.map((_,i)=>wP[i]*(rP[i]-rB[i]));
+    const allocBHB=secs.map((_,i)=>(wP[i]-wB[i])*rB[i]);
+    const selBHB=secs.map((_,i)=>wB[i]*(rP[i]-rB[i]));
+    Plotly.newPlot('chart-bf-alloc',[
+      {x:secs,y:allocBHB.map(v=>+(v*100).toFixed(4)),type:'bar',name:'Asig. BHB',marker:{color:'#2A4365'}},
+      {x:secs,y:allocBF.map(v=>+(v*100).toFixed(4)),type:'bar',name:'Asig. BF',marker:{color:'#E05252'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'%'}}),CFG);
+    const aBHBt=allocBHB.reduce((s,v)=>s+v,0),sBHBt=selBHB.reduce((s,v)=>s+v,0);
+    const aBFt=allocBF.reduce((s,v)=>s+v,0),sBFt=selBF.reduce((s,v)=>s+v,0);
+    Plotly.newPlot('chart-bf-summary',[{
+      x:['BHB Alloc','BHB Sel','BHB Total','BF Alloc','BF Sel','BF Total'],
+      y:[aBHBt,sBHBt,exceso,aBFt,sBFt,exceso].map(v=>+(v*100).toFixed(4)),
+      type:'bar',marker:{color:['#2A4365','#E05252','#5A6E3A','#7B8CDE','#F5A623','#5A6E3A']}
+    }],L({yaxis:{...PLT.yaxis,title:'%'}}),CFG);
+    setMetrics('bf',[
+      {label:'Exceso total',value:(exceso*100).toFixed(3)+'%',cls:exceso>0?'pos':'neg'},
+      {label:'BF Asignación',value:(aBFt*100).toFixed(3)+'%'},
+      {label:'BF Selección',value:(sBFt*100).toFixed(3)+'%'},
+    ]);
+    const insight=await callClaude(SYS,`Brinson-Fachler (BF) vs BHB. Exceso=${(exceso*100).toFixed(4)}%. BF: Alloc=${(aBFt*100).toFixed(4)}%, Sel=${(sBFt*100).toFixed(4)}%. BHB: Alloc=${(aBHBt*100).toFixed(4)}%, Sel=${(sBHBt*100).toFixed(4)}%. Diferencia conceptual entre BF y BHB, cuándo BF es preferible.`);
+    setInsight('bf',insight);
+  });
+}
+
+/* ═══════════════════════════ 16 CAPM ═══════════════════════════ */
+async function runCAPM(tickers){
+  await baseRun('capm',tickers,async(id,tickers,data)=>{
+    const rf=+(document.getElementById('p-rf-capm')?.value||0.04);
+    const allR=tickers.map(t=>data[t].returns);
+    const mktR=allR[0].map((_,i)=>mean(allR.map(r=>r[i])));
+    const mktAnn=(1+mean(mktR))**252-1,mktPrem=mktAnn-rf;
+    const betas=allR.map(r=>+(cov(r,mktR)/(cov(mktR,mktR)||.001)).toFixed(4));
+    const retAnn=allR.map(r=>+((1+mean(r))**252-1).toFixed(4));
+    const capmR=betas.map(b=>+(rf+b*mktPrem).toFixed(4));
+    const alpha=retAnn.map((r,i)=>+(r-capmR[i]).toFixed(4));
+    const bR=Array.from({length:100},(_,i)=>i/50);
+    const traces=[
+      {x:bR,y:bR.map(b=>rf+b*mktPrem),type:'scatter',mode:'lines',name:'SML',line:{color:'#7B8CDE',width:2}},
+      {x:[0],y:[rf],type:'scatter',mode:'markers',name:'Rf',marker:{color:'#8B6F47',size:10}},
+      {x:[1],y:[mktAnn],type:'scatter',mode:'markers',name:'Mercado',marker:{color:'#2A4365',size:12,symbol:'square'}},
+      ...tickers.map((t,i)=>({x:[betas[i]],y:[retAnn[i]],type:'scatter',mode:'markers+text',name:t,text:[t],textposition:'top right',marker:{color:alpha[i]>0?'#00D4AA':'#E05252',size:12}}))
+    ];
+    Plotly.newPlot('chart-capm-sml',traces,L({xaxis:{...PLT.xaxis,title:'Beta (β)'},yaxis:{...PLT.yaxis,title:'E[R] anual'}}),CFG);
+    Plotly.newPlot('chart-capm-alfa',[
+      {x:tickers,y:retAnn.map(v=>+(v*100).toFixed(2)),type:'bar',name:'Retorno real',marker:{color:'#2A4365'}},
+      {x:tickers,y:capmR.map(v=>+(v*100).toFixed(2)),type:'bar',name:'CAPM E[R]',marker:{color:'#E05252'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'Retorno anual %'}}),CFG);
+    document.getElementById('tbody-capm').innerHTML=tickers.map((t,i)=>`<tr>
+      <td>${t}</td><td class="${betas[i]>1?'neg':''}">${betas[i]>0?'+':''}${betas[i]}</td>
+      <td class="${retAnn[i]>0?'pos':'neg'}">${(retAnn[i]*100).toFixed(2)}%</td>
+      <td>${(capmR[i]*100).toFixed(2)}%</td>
+      <td class="${alpha[i]>0?'pos':'neg'}">${(alpha[i]*100).toFixed(2)}%</td>
+      <td class="${alpha[i]>0?'pos':'neg'}">${alpha[i]>0?'↑ Sobre SML':'↓ Bajo SML'}</td></tr>`).join('');
+    setMetrics('capm',[
+      {label:'Ret. mercado',value:(mktAnn*100).toFixed(2)+'%',cls:mktAnn>0?'pos':'neg'},
+      {label:'Prima riesgo',value:(mktPrem*100).toFixed(2)+'%'},
+      {label:'Beta promedio',value:mean(betas).toFixed(3)},
+      {label:'Alfa positivos',value:alpha.filter(a=>a>0).length+'/'+tickers.length,cls:'pos'},
+    ]);
+    const insight=await callClaude(SYS,`CAPM/SML para ${tickers.join(', ')}, Rf=${(rf*100).toFixed(1)}%, ret.mercado=${(mktAnn*100).toFixed(2)}%, prima=${(mktPrem*100).toFixed(2)}%. Betas: ${tickers.map((t,i)=>`${t}=${betas[i]}`).join(', ')}. Alfas: ${tickers.map((t,i)=>`${t}=${(alpha[i]*100).toFixed(2)}%`).join(', ')}. Interpretá riesgo sistemático y alfas.`);
+    setInsight('capm',insight);
+  });
+}
+
+/* ═══════════════════════════ 17 FRONTERA ═══════════════════════════ */
+async function mcPortfolios(tickers,data,nSim=3000){
+  const allR=tickers.map(t=>data[t].returns);
+  const retAnn=allR.map(r=>(1+mean(r))**252-1);
+  const volAnn=allR.map(r=>std(r)*Math.sqrt(252));
+  const covM=tickers.map((_,i)=>tickers.map((_,j)=>cov(allR[i],allR[j])*252));
+  let bestS=-Infinity,bestW=null,bestR=0,bestV=0;
+  const vols=[],rets=[],sharpes=[];
+  for(let s=0;s<nSim;s++){
+    const w=Array.from({length:tickers.length},()=>Math.random());
+    const wN=w.map(v=>v/w.reduce((a,b)=>a+b,0));
+    const r=wN.reduce((a,v,i)=>a+v*retAnn[i],0);
+    const variance=wN.reduce((a,wi,i)=>a+wN.reduce((b,wj,j)=>b+wi*wj*covM[i][j],0),0);
+    const v=Math.sqrt(Math.max(variance,0));
+    const sh=(r-.04)/(v||.001);
+    vols.push(+v.toFixed(4));rets.push(+r.toFixed(4));sharpes.push(+sh.toFixed(4));
+    if(sh>bestS){bestS=sh;bestW=[...wN.map(v=>+v.toFixed(4))];bestR=r;bestV=v}
+  }
+  return{vols,rets,sharpes,bestW,bestR,bestV,bestS,retAnn,volAnn,covM};
+}
+
+async function runFrontera(tickers){
+  await baseRun('frontera',tickers,async(id,tickers,data)=>{
+    const {vols,rets,sharpes,bestW,bestR,bestV,bestS,retAnn,volAnn}=await mcPortfolios(tickers,data,3000);
+    Plotly.newPlot('chart-frontera-nube',[
+      {x:vols,y:rets,mode:'markers',type:'scatter',marker:{color:sharpes,colorscale:'Viridis',size:4,opacity:.5,colorbar:{title:'Sharpe',thickness:12}},showlegend:false},
+      {x:[bestV],y:[bestR],mode:'markers',type:'scatter',name:`Óptimo S=${bestS.toFixed(2)}`,marker:{color:'#E05252',size:16,symbol:'star',line:{color:'white',width:1}}},
+      ...tickers.map((t,i)=>({x:[volAnn[i]],y:[retAnn[i]],mode:'markers+text',type:'scatter',text:[t],textposition:'top right',marker:{color:'#F5A623',size:10},name:t}))
+    ],L({xaxis:{...PLT.xaxis,title:'σ anual'},yaxis:{...PLT.yaxis,title:'E[R] anual'}}),CFG);
+    Plotly.newPlot('chart-frontera-pesos',[{x:tickers,y:bestW.map(v=>+(v*100).toFixed(2)),type:'bar',marker:{color:C.slice(0,tickers.length)}}],L({yaxis:{...PLT.yaxis,title:'Peso %'}}),CFG);
+    Plotly.newPlot('chart-frontera-riesgo',[{x:tickers,y:bestW.map(w=>+(w/bestW.reduce((a,b)=>a+b,0)*100).toFixed(2)),type:'bar',marker:{color:'#E05252'}}],L({yaxis:{...PLT.yaxis,title:'Contribución %'}}),CFG);
+    setMetrics('frontera',[
+      {label:'Sharpe óptimo',value:bestS.toFixed(3),cls:'pos'},
+      {label:'Retorno',value:(bestR*100).toFixed(2)+'%',cls:'pos'},
+      {label:'Volatilidad',value:(bestV*100).toFixed(2)+'%'},
+      {label:'Portafolios sim.',value:'3.000'},
+    ]);
+    const insight=await callClaude(SYS,`Frontera eficiente MC (3000 portafolios) para ${tickers.join(', ')}. Tangente: E[R]=${(bestR*100).toFixed(2)}%, σ=${(bestV*100).toFixed(2)}%, Sharpe=${bestS.toFixed(3)}. Pesos: ${tickers.map((t,i)=>`${t}=${(bestW[i]*100).toFixed(1)}%`).join(', ')}. Concentración, MC vs optimización exacta, activo dominante.`);
+    setInsight('frontera',insight);
+  });
+}
+
+/* ═══════════════════════════ 18 CML SIM ═══════════════════════════ */
+async function runCMLSim(tickers){
+  await baseRun('cml-sim',tickers,async(id,tickers,data)=>{
+    const {vols,rets,sharpes,bestW,bestR,bestV,bestS,retAnn,volAnn,covM}=await mcPortfolios(tickers,data,3000);
+    const cmlX=Array.from({length:80},(_,i)=>i*(Math.max(...vols)*1.1)/79);
+    Plotly.newPlot('chart-cml-sim-main',[
+      {x:vols,y:rets,mode:'markers',type:'scatter',marker:{color:sharpes,colorscale:'Viridis',size:4,opacity:.4,colorbar:{title:'Sharpe',thickness:12}},showlegend:false},
+      {x:cmlX,y:cmlX.map(x=>.04+bestS*x),type:'scatter',mode:'lines',name:'CML',line:{color:'#00D4AA',width:2.5}},
+      {x:[0],y:[.04],type:'scatter',mode:'markers',name:'Rf=4%',marker:{color:'#8B6F47',size:10}},
+      {x:[bestV],y:[bestR],type:'scatter',mode:'markers',name:`Tangente S=${bestS.toFixed(2)}`,marker:{color:'#E05252',size:14,symbol:'star',line:{color:'white',width:1}}},
+      ...tickers.map((t,i)=>({x:[volAnn[i]],y:[retAnn[i]],mode:'markers+text',type:'scatter',text:[t],textposition:'top right',marker:{color:'#F5A623',size:9},name:t}))
+    ],L({xaxis:{...PLT.xaxis,title:'σ anual'},yaxis:{...PLT.yaxis,title:'E[R] anual'}}),CFG);
+    const marg=tickers.map((_,i)=>tickers.reduce((s,_,j)=>s+bestW[j]*covM[i][j],0));
+    const contribPct=bestW.map((w,i)=>+(w*marg[i]/(bestV||.001)/bestW.reduce((a,wi,ii)=>a+wi*marg[ii]/(bestV||.001),0)*100).toFixed(2));
+    Plotly.newPlot('chart-cml-sim-contrib',[{x:tickers,y:contribPct,type:'bar',marker:{color:'#E05252'}}],L({yaxis:{...PLT.yaxis,title:'Contribución %'}}),CFG);
+    setMetrics('cml-sim',[
+      {label:'Sharpe tangente',value:bestS.toFixed(3),cls:'pos'},
+      {label:'Pendiente CML',value:bestS.toFixed(3)},
+      {label:'E[R] tangente',value:(bestR*100).toFixed(2)+'%',cls:'pos'},
+      {label:'σ tangente',value:(bestV*100).toFixed(2)+'%'},
+    ]);
+    const insight=await callClaude(SYS,`CML (vía simulación MC) para ${tickers.join(', ')}, Rf=4%. Tangente: E[R]=${(bestR*100).toFixed(2)}%, σ=${(bestV*100).toFixed(2)}%, Sharpe=${bestS.toFixed(3)}. Significado de la pendiente CML, leverage, qué implica estar sobre o bajo el tangente.`);
+    setInsight('cml-sim',insight);
+  });
+}
+
+/* ═══════════════════════════ 19 CML OPT ═══════════════════════════ */
+async function runCMLOpt(tickers){
+  await baseRun('cml-opt',tickers,async(id,tickers,data)=>{
+    const {vols,rets,sharpes,bestW,bestR,bestV,bestS,retAnn,volAnn,covM}=await mcPortfolios(tickers,data,6000);
+    const cmlX=Array.from({length:80},(_,i)=>i*(Math.max(...vols,0.2)*1.1)/79);
+    Plotly.newPlot('chart-cml-opt-main',[
+      {x:vols,y:rets,mode:'markers',type:'scatter',marker:{color:'rgba(123,140,222,.25)',size:3},showlegend:false},
+      {x:cmlX,y:cmlX.map(x=>.04+bestS*x),type:'scatter',mode:'lines',name:'CML',line:{color:'#E05252',width:2.5}},
+      {x:[0],y:[.04],type:'scatter',mode:'markers',name:'Rf=4%',marker:{color:'#8B6F47',size:10}},
+      {x:[bestV],y:[bestR],type:'scatter',mode:'markers',name:`Tangente S=${bestS.toFixed(2)}`,marker:{color:'#00D4AA',size:14,symbol:'star',line:{color:'white',width:1}}},
+      ...tickers.map((t,i)=>({x:[volAnn[i]],y:[retAnn[i]],mode:'markers+text',type:'scatter',text:[t],textposition:'top right',marker:{color:'#F5A623',size:10},name:t}))
+    ],L({xaxis:{...PLT.xaxis,title:'σ anual'},yaxis:{...PLT.yaxis,title:'E[R] anual'}}),CFG);
+    Plotly.newPlot('chart-cml-opt-pesos',[{x:tickers,y:bestW.map(v=>+(v*100).toFixed(2)),type:'bar',marker:{color:C.slice(0,tickers.length)}}],L({yaxis:{...PLT.yaxis,title:'Peso %'}}),CFG);
+    const marg=tickers.map((_,i)=>tickers.reduce((s,_,j)=>s+bestW[j]*covM[i][j],0));
+    const contribPct=bestW.map((w,i)=>+(w*marg[i]/(bestV||.001)/bestW.reduce((a,wi,ii)=>a+wi*marg[ii]/(bestV||.001),0)*100).toFixed(2));
+    Plotly.newPlot('chart-cml-opt-riesgo',[{x:tickers,y:contribPct,type:'bar',marker:{color:'#E05252'}}],L({yaxis:{...PLT.yaxis,title:'Contribución %'}}),CFG);
+    setMetrics('cml-opt',[
+      {label:'Sharpe óptimo',value:bestS.toFixed(3),cls:'pos'},
+      {label:'E[R]',value:(bestR*100).toFixed(2)+'%',cls:'pos'},
+      {label:'σ',value:(bestV*100).toFixed(2)+'%'},
+      {label:'Bounds',value:'[0%, 100%]'},
+    ]);
+    const insight=await callClaude(SYS,`CML por optimización numérica (6000 portafolios, long-only) para ${tickers.join(', ')}, Rf=4%. Tangente: E[R]=${(bestR*100).toFixed(2)}%, σ=${(bestV*100).toFixed(2)}%, Sharpe=${bestS.toFixed(3)}. Diferencia MC vs SLSQP exacto, qué punto de la CML es el portafolio de mercado.`);
+    setInsight('cml-opt',insight);
+  });
+}
+
+/* ═══════════════════════════ 20 UPSIDE ═══════════════════════════ */
+async function runUpside(tickers){
+  await baseRun('upside',tickers,async(id,tickers,data)=>{
+    const allR=tickers.map(t=>data[t].returns);
+    const volAnn=allR.map(r=>std(r)*Math.sqrt(252));
+    const covM=tickers.map((_,i)=>tickers.map((_,j)=>cov(allR[i],allR[j])*252));
+    const retExp=allR.map(r=>+((( 1+mean(r))**252-1)*1.2+0.05).toFixed(4));
+    let bestS=-Infinity,bestW=null,bestR=0,bestV=0;
+    const vols=[],rets=[];
+    for(let s=0;s<5000;s++){
+      const w=Array.from({length:tickers.length},()=>Math.random());
+      const wN=w.map(v=>v/w.reduce((a,b)=>a+b,0));
+      const r=wN.reduce((a,v,i)=>a+v*retExp[i],0);
+      const variance=wN.reduce((a,wi,i)=>a+wN.reduce((b,wj,j)=>b+wi*wj*covM[i][j],0),0);
+      const v=Math.sqrt(Math.max(variance,0));
+      vols.push(+v.toFixed(4));rets.push(+r.toFixed(4));
+      const sh=(r-.04)/(v||.001);
+      if(sh>bestS){bestS=sh;bestW=[...wN.map(v=>+v.toFixed(4))];bestR=r;bestV=v}
+    }
+    const cmlX=Array.from({length:80},(_,i)=>i*(Math.max(...vols,0.2)*1.1)/79);
+    Plotly.newPlot('chart-upside-main',[
+      {x:vols,y:rets,mode:'markers',type:'scatter',marker:{color:'rgba(0,212,170,.2)',size:3},showlegend:false},
+      {x:cmlX,y:cmlX.map(x=>.04+bestS*x),type:'scatter',mode:'lines',name:'CML',line:{color:'#E05252',width:2}},
+      {x:[bestV],y:[bestR],type:'scatter',mode:'markers',name:`Tangente S=${bestS.toFixed(2)}`,marker:{color:'#00D4AA',size:14,symbol:'star',line:{color:'white',width:1}}},
+      ...tickers.map((t,i)=>({x:[volAnn[i]],y:[retExp[i]],mode:'markers+text',type:'scatter',text:[t],textposition:'top right',marker:{color:'#F5A623',size:9},name:t}))
+    ],L({xaxis:{...PLT.xaxis,title:'σ anual'},yaxis:{...PLT.yaxis,title:'E[R] esperado'}}),CFG);
+    Plotly.newPlot('chart-upside-pesos',[{x:tickers,y:(bestW||[]).map(v=>+(v*100).toFixed(2)),type:'bar',marker:{color:(bestW||[]).map(v=>v>.5?'#E05252':C[0])}}],L({yaxis:{...PLT.yaxis,title:'Peso %'}}),CFG);
+    setMetrics('upside',[
+      {label:'Sharpe',value:bestS.toFixed(3),cls:'pos'},
+      {label:'E[R] esperado',value:(bestR*100).toFixed(2)+'%',cls:'pos'},
+      {label:'Concentración máx',value:(Math.max(...(bestW||[1]))*100).toFixed(1)+'%',cls:Math.max(...(bestW||[0]))>.5?'neg':''},
+    ]);
+    const insight=await callClaude(SYS,`Frontera con vistas propias (+20% sobre histórico) para ${tickers.join(', ')}, sin cap. Tangente: E[R]=${(bestR*100).toFixed(2)}%, σ=${(bestV*100).toFixed(2)}%, S=${bestS.toFixed(3)}. Concentración máx=${(Math.max(...(bestW||[0]))*100).toFixed(1)}%. Problema garbage-in-garbage-out, por qué agregar cap mejora robustez.`);
+    setInsight('upside',insight);
+  });
+}
+
+/* ═══════════════════════════ 21 UPSIDE CAP ═══════════════════════════ */
+async function runUpsideCap(tickers){
+  await baseRun('upside-cap',tickers,async(id,tickers,data)=>{
+    const CAP=0.20;
+    const allR=tickers.map(t=>data[t].returns);
+    const volAnn=allR.map(r=>std(r)*Math.sqrt(252));
+    const covM=tickers.map((_,i)=>tickers.map((_,j)=>cov(allR[i],allR[j])*252));
+    const retExp=allR.map(r=>+((( 1+mean(r))**252-1)*1.2+0.05).toFixed(4));
+    let bestS=-Infinity,bestW=null,bestR=0,bestV=0;
+    const vols=[],rets=[];
+    let tries=0;
+    while(vols.length<2500&&tries<40000){
+      tries++;
+      const w=Array.from({length:tickers.length},()=>Math.random()*CAP);
+      const wS=w.reduce((a,b)=>a+b,0);if(!wS)continue;
+      const wN=w.map(v=>v/wS);
+      if(Math.max(...wN)>CAP+0.002)continue;
+      const r=wN.reduce((a,v,i)=>a+v*retExp[i],0);
+      const variance=wN.reduce((a,wi,i)=>a+wN.reduce((b,wj,j)=>b+wi*wj*covM[i][j],0),0);
+      const v=Math.sqrt(Math.max(variance,0));
+      vols.push(+v.toFixed(4));rets.push(+r.toFixed(4));
+      const sh=(r-.04)/(v||.001);
+      if(sh>bestS){bestS=sh;bestW=[...wN.map(v=>+v.toFixed(4))];bestR=r;bestV=v}
+    }
+    const cmlX=Array.from({length:80},(_,i)=>i*(Math.max(...vols,0.2)*1.1)/79);
+    Plotly.newPlot('chart-upcap-main',[
+      {x:vols,y:rets,mode:'markers',type:'scatter',marker:{color:'rgba(0,212,170,.2)',size:3},showlegend:false},
+      {x:cmlX,y:cmlX.map(x=>.04+bestS*x),type:'scatter',mode:'lines',name:`CML (cap ${CAP*100}%)`,line:{color:'#E05252',width:2}},
+      {x:[bestV],y:[bestR],type:'scatter',mode:'markers',name:`Tangente S=${bestS.toFixed(2)}`,marker:{color:'#00D4AA',size:14,symbol:'star',line:{color:'white',width:1}}},
+      ...tickers.map((t,i)=>({x:[volAnn[i]],y:[retExp[i]],mode:'markers+text',type:'scatter',text:[t],textposition:'top right',marker:{color:'#F5A623',size:9},name:t}))
+    ],L({xaxis:{...PLT.xaxis,title:'σ anual'},yaxis:{...PLT.yaxis,title:'E[R] esperado'}}),CFG);
+    Plotly.newPlot('chart-upcap-pesos',[
+      {x:tickers,y:(bestW||tickers.map(()=>1/tickers.length)).map(v=>+(v*100).toFixed(2)),type:'bar',marker:{color:(bestW||[]).map(v=>v>=CAP-.01?'#E05252':C[0])}},
+      {x:[tickers[0],tickers[tickers.length-1]],y:[CAP*100,CAP*100],type:'scatter',mode:'lines',line:{color:'#E05252',dash:'dash',width:1.5},name:`Cap ${CAP*100}%`}
+    ],L({yaxis:{...PLT.yaxis,title:'Peso %'}}),CFG);
+    setMetrics('upside-cap',[
+      {label:'Sharpe',value:bestS.toFixed(3),cls:'pos'},
+      {label:'E[R] esperado',value:(bestR*100).toFixed(2)+'%',cls:'pos'},
+      {label:'Cap',value:(CAP*100)+'%'},
+      {label:'Activos activos',value:(bestW||[]).filter(w=>w>.01).length+'/'+tickers.length},
+    ]);
+    const insight=await callClaude(SYS,`Frontera con vistas propias y CAP 20% para ${tickers.join(', ')}, Rf=4%. Tangente: E[R]=${(bestR*100).toFixed(2)}%, σ=${(bestV*100).toFixed(2)}%, S=${bestS.toFixed(3)}. Activos activos: ${(bestW||[]).filter(w=>w>.01).length}/${tickers.length}. Trade-off Sharpe vs diversificación, mandatos institucionales.`);
+    setInsight('upside-cap',insight);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MÓDULOS 22-32 — DATOS REALES + INDICADORES TÉCNICOS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   REAL DATA LAYER — Yahoo Finance v8 (CORS ok desde browser)
+   ──────────────────────────────────────────────────────────────── */
+
+/* ── YAHOO FINANCE PARSER ──────────────────────────────────────── */
+function parseYFResponse(json, ticker){
+  const result = json?.chart?.result?.[0];
+  if(!result) throw new Error(`Sin datos para ${ticker}`);
+  const ts = result.timestamp;
+  const q = result.indicators.quote[0];
+  const adj = result.indicators.adjclose?.[0]?.adjclose || q.close;
+  const dates = ts.map(t=>new Date(t*1000).toISOString().slice(0,10));
+  // Filter out null rows (market holidays with partial data)
+  const valid = dates.map((_,i)=>q.close[i]!==null&&q.open[i]!==null);
+  return {
+    dates:  dates.filter((_,i)=>valid[i]),
+    open:   q.open.filter((_,i)=>valid[i]).map(v=>+v.toFixed(4)),
+    high:   q.high.filter((_,i)=>valid[i]).map(v=>+v.toFixed(4)),
+    low:    q.low.filter((_,i)=>valid[i]).map(v=>+v.toFixed(4)),
+    close:  q.close.filter((_,i)=>valid[i]).map(v=>+v.toFixed(4)),
+    volume: q.volume.filter((_,i)=>valid[i]).map(v=>v||0),
+    ticker
+  };
+}
+
+/* ── FETCH CON REINTENTOS Y PROXY CORS ─────────────────────────── */
+async function fetchYahoo(ticker, period='2y'){
+  const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${period}&interval=1d&includePrePost=false`;
+  const yfUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?range=${period}&interval=1d&includePrePost=false`;
+  const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
+  const proxy2 = `https://corsproxy.io/?${encodeURIComponent(yfUrl2)}`;
+
+  const attempts = [
+    { url: yfUrl,   label: 'Yahoo directo'   },
+    { url: proxy,   label: 'allorigins proxy' },
+    { url: proxy2,  label: 'corsproxy.io'    },
+    { url: yfUrl2,  label: 'Yahoo query2'    },
+  ];
+
+  let lastErr = '';
+  for(const { url, label } of attempts){
+    try{
+      const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+      if(!res.ok){ lastErr = `${label}: HTTP ${res.status}`; continue; }
+      const json = await res.json();
+      const data = parseYFResponse(json, ticker);
+      console.log(`✓ ${ticker} via ${label} (${data.dates.length} días)`);
+      return data;
+    }catch(e){
+      lastErr = `${label}: ${e.message}`;
+      console.warn(`✗ ${ticker} ${label}:`, e.message);
+    }
+  }
+  throw new Error(`No se pudo obtener ${ticker}. Verificá el ticker y tu conexión. (${lastErr})`);
+}
+
+async function fetchMultiYahoo(tickers, period='2y'){
+  // Sequential fetches to avoid triggering rate limits
+  const results = [];
+  for(const t of tickers){
+    try{
+      results.push(await fetchYahoo(t, period));
+    }catch(e){
+      console.warn('Error fetching', t, e.message);
+      results.push({ error: e.message, ticker: t });
+    }
+  }
+  const ok = results.filter(r=>!r.error);
+  if(!ok.length) throw new Error(
+    'No se pudo obtener datos. Verificá: (1) los tickers son válidos en Yahoo Finance, ' +
+    '(2) tenés conexión a internet, (3) si el problema persiste, recargá la página.'
+  );
+  const errs = results.filter(r=>r.error);
+  if(errs.length) console.warn('Tickers con error:', errs.map(e=>e.ticker));
+  return ok;
+}
+
+function getFmpKey(){
+  const k1=document.getElementById('p-fmp-key')?.value.trim();
+  const k2=document.getElementById('p-fmp-key2')?.value.trim();
+  return k1||k2||sessionStorage.getItem('fmp_key')||'';
+}
+
+function saveFmpKey(key){
+  if(key) sessionStorage.setItem('fmp_key',key);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DISPATCHER PATCH — agregar módulos 22-32 al mapa
+   ──────────────────────────────────────────────────────────────── */
+
+const extraModules = {
+  'rsi':runRSI,'bollinger':runBollinger,'keltner':runKeltner,
+  'obv':runOBV,'mfi':runMFI,'impulso':runImpulso,'aroon':runAroon,
+  'oad':runOAD,'autoreg':runAutoreg,'estados':runEstados,'ratios':runRatios
+};
+
+// Patch runAnalysis to also check extra modules
+const _origRun = runAnalysis;
+runAnalysis = function(){
+  const raw=document.getElementById('input-tickers').value.trim();
+  if(!raw){alert('Ingresá al menos un ticker.');return}
+  const tickers=raw.split(/[\s,]+/).filter(Boolean).map(t=>t.toUpperCase());
+  const fn = extraModules[currentPanel];
+  if(fn){
+    if(!apiKey){alert('Configurá la API key de Anthropic primero.');return}
+    document.getElementById('btn-run').disabled=true;
+    setStatus('⬡ procesando...','s-warn');
+    fn(tickers).catch(e=>{showE(currentPanel,e.message);hideL(currentPanel)})
+      .finally(()=>{document.getElementById('btn-run').disabled=false;setStatus('⬡ listo','s-ok')});
+  } else {
+    _origRun();
+  }
+};
+
+/* ────────────────────────────────────────────────────────────────
+   BASE RUNNER — usando datos reales de Yahoo Finance
+   ──────────────────────────────────────────────────────────────── */
+
+async function baseRunReal(id, tickers, computeFn){
+  showL(id);hideE(id);hideR(id);
+  try{
+    const period = document.getElementById('input-period')?.value||'2y';
+    const dataArr = await fetchMultiYahoo(tickers, period);
+    // Add returns array to each data object
+    dataArr.forEach(d => {
+      d.returns = d.close.map((c,i) => i===0 ? 0 : (c - d.close[i-1]) / d.close[i-1]);
+    });
+    await computeFn(id, dataArr);
+    hideL(id);showR(id);
+    setHdr(id, dataArr.map(d=>d.ticker));
+  }catch(e){
+    hideL(id);showE(id,e.message);throw e;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   22 — RSI (Wilder smoothing)
+   ──────────────────────────────────────────────────────────────── */
+function calcRSI(close, period=14){
+  const delta=close.map((v,i)=>i===0?0:v-close[i-1]);
+  const gain=delta.map(v=>v>0?v:0);
+  const loss=delta.map(v=>v<0?-v:0);
+  const alpha=1/period;
+  let avgGain=0,avgLoss=0;
+  const rsi=new Array(close.length).fill(NaN);
+  for(let i=0;i<close.length;i++){
+    if(i<period){avgGain+=gain[i]/period;avgLoss+=loss[i]/period;continue}
+    avgGain=avgGain*(1-alpha)+gain[i]*alpha;
+    avgLoss=avgLoss*(1-alpha)+loss[i]*alpha;
+    rsi[i]=avgLoss===0?100:+(100-(100/(1+avgGain/avgLoss))).toFixed(2);
+  }
+  return rsi;
+}
+
+async function runRSI(tickers){
+  await baseRunReal('rsi',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-rsi');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const rsi=calcRSI(d.close,14);
+      const lastRSI=rsi.filter(v=>!isNaN(v)).pop();
+      const zone=lastRSI>70?'SOBRECOMPRA':lastRSI<30?'SOBREVENTA':'NEUTRAL';
+      sigs.push({ticker:d.ticker,rsi:+lastRSI.toFixed(1),zone});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="rsi-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — RSI (14, Wilder)</div><div id="rsi-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`rsi-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`rsi-i-${ti}`,[
+          {x:d.dates,y:rsi,type:'scatter',mode:'lines',name:'RSI 14',line:{color:'#7B8CDE',width:1.5}},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[70,70],mode:'lines',line:{color:'#E05252',dash:'dot',width:1},name:'Sobrecompra (70)'},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[30,30],mode:'lines',line:{color:'#00D4AA',dash:'dot',width:1},name:'Sobreventa (30)'},
+        ],L({yaxis:{...PLT.yaxis,range:[0,100]}}),CFG);
+      },50);
+    });
+    setMetrics('rsi',sigs.map(s=>({label:s.ticker,value:s.rsi.toFixed(1),cls:s.rsi>70?'neg':s.rsi<30?'pos':'',sub:s.zone})));
+    const insight=await callClaude(SYS,`RSI (14, Wilder) para ${dataArr.map(d=>d.ticker).join(', ')}. Lecturas actuales: ${sigs.map(s=>`${s.ticker}=${s.rsi} (${s.zone})`).join(' | ')}. Analizá señales de sobrecompra/sobreventa, divergencias con precio y posibles reversiones.`);
+    setInsight('rsi',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   23 — BOLLINGER BANDS (MA20 ± 2σ)
+   ──────────────────────────────────────────────────────────────── */
+async function runBollinger(tickers){
+  await baseRunReal('bollinger',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-bollinger');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const W=20;
+      const ma=d.close.map((_,i)=>i<W-1?NaN:mean(d.close.slice(i-W+1,i+1)));
+      const rStd=d.close.map((_,i)=>i<W-1?NaN:std(d.close.slice(i-W+1,i+1)));
+      const upper=ma.map((v,i)=>isNaN(v)?NaN:+(v+2*rStd[i]).toFixed(4));
+      const lower=ma.map((v,i)=>isNaN(v)?NaN:+(v-2*rStd[i]).toFixed(4));
+      const lastC=d.close[d.close.length-1];
+      const lastU=upper.filter(v=>!isNaN(v)).pop();
+      const lastL=lower.filter(v=>!isNaN(v)).pop();
+      const lastMA=ma.filter(v=>!isNaN(v)).pop();
+      const bw=lastMA?+((lastU-lastL)/lastMA*100).toFixed(2):0;
+      const pos=lastMA?+((lastC-lastL)/(lastU-lastL)*100).toFixed(1):50;
+      sigs.push({ticker:d.ticker,bw,pos,zone:pos>80?'CERCA BANDA ALTA':pos<20?'CERCA BANDA BAJA':'CENTRAL'});
+      const div=document.createElement('div');
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Bandas de Bollinger (MA20 ± 2σ)</div><div id="bol-${ti}" style="height:320px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`bol-${ti}`,[
+          {x:d.dates,y:upper,type:'scatter',mode:'lines',name:'Banda sup',line:{color:'rgba(0,212,170,.6)',width:1},fill:'none'},
+          {x:d.dates,y:lower,type:'scatter',mode:'lines',name:'Banda inf',line:{color:'rgba(0,212,170,.6)',width:1},fill:'tonexty',fillcolor:'rgba(0,212,170,.08)'},
+          {x:d.dates,y:ma,type:'scatter',mode:'lines',name:'MA 20',line:{color:'#F5A623',width:1.5,dash:'dash'}},
+          {x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}},
+        ],L(),CFG);
+      },50);
+    });
+    setMetrics('bollinger',sigs.map(s=>({label:s.ticker,value:s.pos.toFixed(0)+'% en banda',cls:s.pos>80?'neg':s.pos<20?'pos':'',sub:`BW=${s.bw}%`})));
+    const insight=await callClaude(SYS,`Bandas de Bollinger (MA20±2σ) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}: pos=${s.pos}% de la banda, ancho=${s.bw}% (${s.zone})`).join(' | ')}. Analizá squeezes, breakouts y señales de reversión.`);
+    setInsight('bollinger',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   24 — KELTNER (fórmula original Chester Keltner 1960)
+   ──────────────────────────────────────────────────────────────── */
+async function runKeltner(tickers){
+  await baseRunReal('keltner',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-keltner');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const W=10;
+      const tp=d.close.map((_,i)=>(d.high[i]+d.low[i]+d.close[i])/3);
+      const rng=d.high.map((_,i)=>d.high[i]-d.low[i]);
+      const central=tp.map((_,i)=>i<W-1?NaN:mean(tp.slice(i-W+1,i+1)));
+      const ancho=rng.map((_,i)=>i<W-1?NaN:mean(rng.slice(i-W+1,i+1)));
+      const upper=central.map((v,i)=>isNaN(v)?NaN:+(v+ancho[i]).toFixed(4));
+      const lower=central.map((v,i)=>isNaN(v)?NaN:+(v-ancho[i]).toFixed(4));
+      const lastC=d.close[d.close.length-1];
+      const lastU=upper.filter(v=>!isNaN(v)).pop();
+      const lastL=lower.filter(v=>!isNaN(v)).pop();
+      const zone=lastC>lastU?'SOBRE CANAL':lastC<lastL?'BAJO CANAL':'DENTRO';
+      sigs.push({ticker:d.ticker,lastC:+lastC.toFixed(2),lastU:+lastU.toFixed(2),lastL:+lastL.toFixed(2),zone});
+      const div=document.createElement('div');
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Bandas de Keltner (original, 10d)</div><div id="kel-${ti}" style="height:320px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`kel-${ti}`,[
+          {x:d.dates,y:upper,type:'scatter',mode:'lines',name:'Banda sup',line:{color:'rgba(0,212,170,.7)',width:1},fill:'none'},
+          {x:d.dates,y:lower,type:'scatter',mode:'lines',name:'Banda inf',line:{color:'rgba(0,212,170,.7)',width:1},fill:'tonexty',fillcolor:'rgba(0,212,170,.07)'},
+          {x:d.dates,y:central,type:'scatter',mode:'lines',name:'Central (SMA TP)',line:{color:'#F5A623',width:1.5,dash:'dash'}},
+          {x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}},
+        ],L(),CFG);
+      },50);
+    });
+    setMetrics('keltner',sigs.map(s=>({label:s.ticker,value:s.zone,cls:s.zone==='SOBRE CANAL'?'pos':s.zone==='BAJO CANAL'?'neg':'',sub:`Canal: ${s.lastL}–${s.lastU}`})));
+    const insight=await callClaude(SYS,`Bandas de Keltner (fórmula original 1960, período 10d) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}: precio=${s.lastC}, canal=[${s.lastL},${s.lastU}], zona=${s.zone}`).join(' | ')}. Diferencia con Bollinger, interpretación de breakouts y señales.`);
+    setInsight('keltner',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   25 — OBV (vectorizado)
+   ──────────────────────────────────────────────────────────────── */
+async function runOBV(tickers){
+  await baseRunReal('obv',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-obv');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const direction=d.close.map((c,i)=>i===0?0:c>d.close[i-1]?1:c<d.close[i-1]?-1:0);
+      let cumOBV=0;
+      const obv=direction.map((dir,i)=>{cumOBV+=dir*d.volume[i];return cumOBV});
+      const lastOBV=obv[obv.length-1];
+      const prevOBV=obv[Math.max(0,obv.length-21)];
+      const trend=lastOBV>prevOBV?'ALCISTA':'BAJISTA';
+      sigs.push({ticker:d.ticker,obv:lastOBV,trend});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="obv-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — On Balance Volume</div><div id="obv-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`obv-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`obv-i-${ti}`,[{x:d.dates,y:obv,type:'scatter',mode:'lines',name:'OBV',line:{color:'#A8E6CF',width:1.5}}],L({yaxis:{...PLT.yaxis,title:'OBV'}}),CFG);
+      },50);
+    });
+    setMetrics('obv',sigs.map(s=>({label:s.ticker,value:s.trend,cls:s.trend==='ALCISTA'?'pos':'neg',sub:s.obv>=0?`+${(s.obv/1e6).toFixed(1)}M`:`${(s.obv/1e6).toFixed(1)}M`})));
+    const insight=await callClaude(SYS,`OBV para ${dataArr.map(d=>d.ticker).join(', ')}. Tendencias: ${sigs.map(s=>`${s.ticker}: ${s.trend} (OBV=${(s.obv/1e6).toFixed(1)}M)`).join(' | ')}. Analizá divergencias OBV vs precio, confirmación de tendencia y señales de distribución/acumulación.`);
+    setInsight('obv',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   26 — MFI (Money Flow Index)
+   ──────────────────────────────────────────────────────────────── */
+async function runMFI(tickers){
+  await baseRunReal('mfi',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-mfi');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const W=14;
+      const tp=d.close.map((_,i)=>(d.high[i]+d.low[i]+d.close[i])/3);
+      const rawMF=tp.map((v,i)=>v*d.volume[i]);
+      const tpDiff=tp.map((v,i)=>i===0?0:v-tp[i-1]);
+      const posMF=rawMF.map((v,i)=>tpDiff[i]>0?v:0);
+      const negMF=rawMF.map((v,i)=>tpDiff[i]<0?v:0);
+      const mfi=tp.map((_,i)=>{
+        if(i<W)return NaN;
+        const pos=posMF.slice(i-W+1,i+1).reduce((a,b)=>a+b,0);
+        const neg=negMF.slice(i-W+1,i+1).reduce((a,b)=>a+b,0);
+        if(neg===0)return 100;
+        return +(100-(100/(1+pos/neg))).toFixed(2);
+      });
+      const lastMFI=mfi.filter(v=>!isNaN(v)).pop();
+      const zone=lastMFI>80?'SOBRECOMPRA':lastMFI<20?'SOBREVENTA':'NEUTRAL';
+      sigs.push({ticker:d.ticker,mfi:+lastMFI.toFixed(1),zone});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="mfi-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — Money Flow Index (14)</div><div id="mfi-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`mfi-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`mfi-i-${ti}`,[
+          {x:d.dates,y:mfi,type:'scatter',mode:'lines',name:'MFI 14',line:{color:'#7B8CDE',width:1.5}},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[80,80],mode:'lines',line:{color:'#E05252',dash:'dot',width:1},name:'Sobrecompra (80)'},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[20,20],mode:'lines',line:{color:'#00D4AA',dash:'dot',width:1},name:'Sobreventa (20)'},
+        ],L({yaxis:{...PLT.yaxis,range:[0,100]}}),CFG);
+      },50);
+    });
+    setMetrics('mfi',sigs.map(s=>({label:s.ticker,value:s.mfi.toFixed(1),cls:s.mfi>80?'neg':s.mfi<20?'pos':'',sub:s.zone})));
+    const insight=await callClaude(SYS,`MFI (14) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}=${s.mfi} (${s.zone})`).join(' | ')}. MFI combina precio Y volumen. Analizá divergencias con precio y diferencia vs RSI (sin volumen).`);
+    setInsight('mfi',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   27 — IMPULSO / MOMENTUM
+   ──────────────────────────────────────────────────────────────── */
+async function runImpulso(tickers){
+  await baseRunReal('impulso',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-impulso');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const P=10;
+      const mom=d.close.map((c,i)=>i<P?NaN:+(c-d.close[i-P]).toFixed(4));
+      const lastM=mom.filter(v=>!isNaN(v)).pop();
+      const pct=lastM&&d.close[d.close.length-1-P]?+(lastM/d.close[d.close.length-1-P]*100).toFixed(2):0;
+      sigs.push({ticker:d.ticker,mom:+lastM.toFixed(2),pct});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="imp-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — Momentum (10 días)</div><div id="imp-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`imp-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`imp-i-${ti}`,[
+          {x:d.dates,y:mom,type:'scatter',mode:'lines',name:'Momentum 10d',line:{color:'#F5A623',width:1.5}},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[0,0],mode:'lines',line:{color:'#5C6480',dash:'dot',width:1},showlegend:false},
+        ],L(),CFG);
+      },50);
+    });
+    setMetrics('impulso',sigs.map(s=>({label:s.ticker,value:s.pct>0?'+'+s.pct+'%':s.pct+'%',cls:s.pct>0?'pos':'neg',sub:`Δ = ${s.mom>0?'+':''}${s.mom}`})));
+    const insight=await callClaude(SYS,`Indicador de Impulso/Momentum (período=10d) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}: Δ=${s.mom>0?'+':''}${s.mom} (${s.pct>0?'+':''}${s.pct}%)`).join(' | ')}. Analizá aceleración/desaceleración, cruces por cero y divergencias.`);
+    setInsight('impulso',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   28 — AROON (Chande, fórmula corregida argmax/argmin)
+   ──────────────────────────────────────────────────────────────── */
+async function runAroon(tickers){
+  await baseRunReal('aroon',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-aroon');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const W=25;
+      const aroonUp=d.high.map((_,i)=>{
+        if(i<W)return NaN;
+        const sl=d.high.slice(i-W,i+1);
+        const idxMax=sl.indexOf(Math.max(...sl));
+        return +(100*idxMax/W).toFixed(2);
+      });
+      const aroonDown=d.low.map((_,i)=>{
+        if(i<W)return NaN;
+        const sl=d.low.slice(i-W,i+1);
+        const idxMin=sl.indexOf(Math.min(...sl));
+        return +(100*idxMin/W).toFixed(2);
+      });
+      const osc=aroonUp.map((v,i)=>isNaN(v)||isNaN(aroonDown[i])?NaN:+(v-aroonDown[i]).toFixed(2));
+      const lastUp=aroonUp.filter(v=>!isNaN(v)).pop();
+      const lastDown=aroonDown.filter(v=>!isNaN(v)).pop();
+      const lastOsc=osc.filter(v=>!isNaN(v)).pop();
+      const trend=lastOsc>0?'ALCISTA':'BAJISTA';
+      sigs.push({ticker:d.ticker,up:+lastUp.toFixed(1),down:+lastDown.toFixed(1),osc:+lastOsc.toFixed(1),trend});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="aro-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — Aroon Up/Down/Oscilador</div><div id="aro-i-${ti}" style="height:200px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`aro-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`aro-i-${ti}`,[
+          {x:d.dates,y:aroonUp,type:'scatter',mode:'lines',name:'Aroon Up',line:{color:'#00D4AA',width:1.5}},
+          {x:d.dates,y:aroonDown,type:'scatter',mode:'lines',name:'Aroon Down',line:{color:'#E05252',width:1.5}},
+          {x:d.dates,y:osc,type:'scatter',mode:'lines',name:'Oscilador',line:{color:'#7B8CDE',width:1,dash:'dash'}},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[70,70],mode:'lines',line:{color:'#5C6480',dash:'dot',width:.8},showlegend:false},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[30,30],mode:'lines',line:{color:'#5C6480',dash:'dot',width:.8},showlegend:false},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[0,0],mode:'lines',line:{color:'#3A4060',width:.8},showlegend:false},
+        ],L({yaxis:{...PLT.yaxis,range:[-110,110]}}),CFG);
+      },50);
+    });
+    setMetrics('aroon',sigs.map(s=>({label:s.ticker,value:s.trend,cls:s.trend==='ALCISTA'?'pos':'neg',sub:`Up=${s.up} Down=${s.down} Osc=${s.osc}`})));
+    const insight=await callClaude(SYS,`Oscilador de Aroon (n=25, Chande) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}: Up=${s.up},Down=${s.down},Osc=${s.osc} (${s.trend})`).join(' | ')}. Analizá fuerza de tendencia, cruces Up/Down y zonas 70/30.`);
+    setInsight('aroon',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   29 — OAD (Oscilador de Acumulación — Williams)
+   ──────────────────────────────────────────────────────────────── */
+async function runOAD(tickers){
+  await baseRunReal('oad',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-oad');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const oad=d.close.map((_,i)=>{
+        const rng=d.high[i]-d.low[i];
+        if(rng===0)return 50;
+        return +((d.high[i]-d.open[i]+d.close[i]-d.low[i])/(2*rng)*100).toFixed(2);
+      });
+      const W=5;
+      const signal=oad.map((_,i)=>i<W-1?NaN:mean(oad.slice(i-W+1,i+1)));
+      const lastOAD=oad[oad.length-1];
+      const zone=lastOAD>70?'ACUMULACIÓN':lastOAD<30?'DISTRIBUCIÓN':'NEUTRAL';
+      sigs.push({ticker:d.ticker,oad:+lastOAD.toFixed(1),zone});
+      const div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;gap:10px';
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Precio</div><div id="oad-p-${ti}" style="height:200px"></div></div>
+        <div class="chart-box"><div class="chart-box-title">${d.ticker} — Oscilador Acumulación (Williams)</div><div id="oad-i-${ti}" style="height:180px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`oad-p-${ti}`,[{x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}}],L(),CFG);
+        Plotly.newPlot(`oad-i-${ti}`,[
+          {x:d.dates,y:oad,type:'scatter',mode:'lines',name:'OAD',line:{color:'#7B8CDE',width:1,opacity:.7}},
+          {x:d.dates,y:signal,type:'scatter',mode:'lines',name:'Señal (MA5)',line:{color:'#F5A623',width:1.5}},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[70,70],mode:'lines',line:{color:'#E05252',dash:'dot',width:1},name:'Sobrecompra'},
+          {x:[d.dates[0],d.dates[d.dates.length-1]],y:[30,30],mode:'lines',line:{color:'#00D4AA',dash:'dot',width:1},name:'Sobreventa'},
+        ],L({yaxis:{...PLT.yaxis,range:[-5,105]}}),CFG);
+      },50);
+    });
+    setMetrics('oad',sigs.map(s=>({label:s.ticker,value:s.oad.toFixed(1),cls:s.oad>70?'pos':s.oad<30?'neg':'',sub:s.zone})));
+    const insight=await callClaude(SYS,`OAD de Williams para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}=${s.oad} (${s.zone})`).join(' | ')}. OAD mide si el precio cierra cerca del máximo (acumulación) o del mínimo (distribución). Analizá señales y cruces con la línea de señal.`);
+    setInsight('oad',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   30 — AUTOREGRESIÓN (Regresión Lineal ±2σ residuos)
+   ──────────────────────────────────────────────────────────────── */
+async function runAutoreg(tickers){
+  await baseRunReal('autoreg',tickers,async(id,dataArr)=>{
+    const cont=document.getElementById('charts-autoreg');cont.innerHTML='';
+    const sigs=[];
+    dataArr.forEach((d,ti)=>{
+      const n=d.close.length;
+      const X=Array.from({length:n},(_,i)=>i);
+      const mx=mean(X),my=mean(d.close);
+      const num=X.reduce((s,x,i)=>s+(x-mx)*(d.close[i]-my),0);
+      const den=X.reduce((s,x)=>s+(x-mx)**2,0);
+      const slope=num/den,intercept=my-slope*mx;
+      const pred=X.map(x=>+(slope*x+intercept).toFixed(4));
+      const residuals=d.close.map((c,i)=>c-pred[i]);
+      const sigma=std(residuals);
+      const upper=pred.map(v=>+(v+2*sigma).toFixed(4));
+      const lower=pred.map(v=>+(v-2*sigma).toFixed(4));
+      const lastC=d.close[n-1],lastU=upper[n-1],lastL=lower[n-1];
+      const zone=lastC>lastU?'SOBRE +2σ':lastC<lastL?'BAJO -2σ':'DENTRO DEL CANAL';
+      const pctInside=(d.close.filter((c,i)=>c>=lower[i]&&c<=upper[i]).length/n*100).toFixed(1);
+      sigs.push({ticker:d.ticker,slope:+(slope*252*100).toFixed(2),zone,pctInside});
+      const div=document.createElement('div');
+      div.innerHTML=`<div class="chart-box"><div class="chart-box-title">${d.ticker} — Bandas de Regresión Lineal (±2σ residuos)</div><div id="reg-${ti}" style="height:320px"></div></div>`;
+      cont.appendChild(div);
+      setTimeout(()=>{
+        Plotly.newPlot(`reg-${ti}`,[
+          {x:d.dates,y:upper,type:'scatter',mode:'lines',name:'+2σ',line:{color:'rgba(0,212,170,.7)',width:1},fill:'none'},
+          {x:d.dates,y:lower,type:'scatter',mode:'lines',name:'-2σ',line:{color:'rgba(0,212,170,.7)',width:1},fill:'tonexty',fillcolor:'rgba(0,212,170,.07)'},
+          {x:d.dates,y:pred,type:'scatter',mode:'lines',name:'Regresión lineal',line:{color:'#F5A623',width:2,dash:'dash'}},
+          {x:d.dates,y:d.close,type:'scatter',mode:'lines',name:'Precio',line:{color:C[ti],width:1.5}},
+        ],L(),CFG);
+      },50);
+    });
+    setMetrics('autoreg',sigs.map(s=>({label:s.ticker,value:s.zone,cls:s.zone==='DENTRO DEL CANAL'?'pos':'neg',sub:`Tend.anual=${s.slope>0?'+':''}${s.slope}% | ${s.pctInside}% dentro`})));
+    const insight=await callClaude(SYS,`Bandas de Regresión Lineal (±2σ residuos) para ${dataArr.map(d=>d.ticker).join(', ')}. ${sigs.map(s=>`${s.ticker}: tendencia anual=${s.slope>0?'+':''}${s.slope}%, zona=${s.zone}, ${s.pctInside}% de días dentro del canal`).join(' | ')}. Analizá tendencia subyacente, rupturas y si el precio está sobre-extendido.`);
+    setInsight('autoreg',insight);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   31 — ESTADOS CONTABLES (FMP API)
+   ──────────────────────────────────────────────────────────────── */
+const FMP_BASE='https://financialmodelingprep.com/stable';
+
+async function fmpFetch(endpoint, ticker, fmpKey, extra={}){
+  const params=new URLSearchParams({symbol:ticker,apikey:fmpKey,limit:1,...extra});
+  const res=await fetch(`${FMP_BASE}/${endpoint}?${params}`);
+  if(!res.ok) throw new Error(`FMP: HTTP ${res.status}`);
+  const data=await res.json();
+  if(!data||!data.length) return null;
+  return data[0];
+}
+
+function fmtNum(v){
+  if(v===null||v===undefined||isNaN(v))return '—';
+  const abs=Math.abs(v);
+  if(abs>=1e9)return (v/1e9).toFixed(1)+'B';
+  if(abs>=1e6)return (v/1e6).toFixed(1)+'M';
+  if(abs>=1e3)return (v/1e3).toFixed(1)+'K';
+  return v.toFixed(2);
+}
+
+async function runEstados(tickers){
+  showL('estados');hideE('estados');hideR('estados');
+  try{
+    const fmpKey=getFmpKey();
+    if(!fmpKey){hideL('estados');showE('estados','Ingresá tu API Key de Financial Modeling Prep.');return}
+    saveFmpKey(fmpKey);
+    const period=document.getElementById('p-fmp-period')?.value||'annual';
+    const results=await Promise.all(tickers.map(async t=>{
+      const [bs,is,cf]=await Promise.all([
+        fmpFetch('balance-sheet-statement',t,fmpKey,{period}).catch(()=>null),
+        fmpFetch('income-statement',t,fmpKey,{period}).catch(()=>null),
+        fmpFetch('cash-flow-statement',t,fmpKey,{period}).catch(()=>null),
+      ]);
+      return{ticker:t,bs,is,cf};
+    }));
+    const valid=results.filter(r=>r.is||r.bs);
+    if(!valid.length)throw new Error('FMP no devolvió datos. Verificá la API key y los tickers.');
+    // Gráficos
+    const tkrs=valid.map(r=>r.ticker);
+    const revs=valid.map(r=>r.is?.revenue||0);
+    const nets=valid.map(r=>r.is?.netIncome||0);
+    const assets=valid.map(r=>r.bs?.totalAssets||0);
+    const liabs=valid.map(r=>r.bs?.totalLiabilities||0);
+    const fcf=valid.map(r=>r.cf?.freeCashFlow||0);
+    const gm=valid.map(r=>r.is?.grossProfit&&r.is?.revenue?+(r.is.grossProfit/r.is.revenue*100).toFixed(1):null);
+    const nm=valid.map(r=>r.is?.netIncome&&r.is?.revenue?+(r.is.netIncome/r.is.revenue*100).toFixed(1):null);
+    Plotly.newPlot('chart-estados-income',[
+      {x:tkrs,y:revs,type:'bar',name:'Ingresos',marker:{color:'#2A4365'}},
+      {x:tkrs,y:nets,type:'bar',name:'Utilidad Neta',marker:{color:'#00D4AA'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'USD'}}),CFG);
+    Plotly.newPlot('chart-estados-balance',[
+      {x:tkrs,y:assets,type:'bar',name:'Activos',marker:{color:'#00D4AA'}},
+      {x:tkrs,y:liabs,type:'bar',name:'Pasivos',marker:{color:'#E05252'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'USD'}}),CFG);
+    Plotly.newPlot('chart-estados-fcf',[{x:tkrs,y:fcf,type:'bar',marker:{color:fcf.map(v=>v>=0?'#00D4AA':'#E05252')},name:'FCF'}],L({yaxis:{...PLT.yaxis,title:'USD'}}),CFG);
+    Plotly.newPlot('chart-estados-margins',[
+      {x:tkrs,y:gm,type:'bar',name:'Margen Bruto %',marker:{color:'#7B8CDE'}},
+      {x:tkrs,y:nm,type:'bar',name:'Margen Neto %',marker:{color:'#00D4AA'}},
+    ],L({barmode:'group',yaxis:{...PLT.yaxis,title:'%'}}),CFG);
+    // Tablas
+    document.getElementById('tbody-balance').innerHTML=valid.map(r=>`<tr>
+      <td>${r.ticker}</td><td>${fmtNum(r.bs?.totalAssets)}</td><td>${fmtNum(r.bs?.totalLiabilities)}</td>
+      <td>${fmtNum(r.bs?.totalStockholdersEquity)}</td><td>${fmtNum(r.bs?.cashAndCashEquivalents)}</td>
+      <td>${fmtNum(r.bs?.longTermDebt)}</td></tr>`).join('');
+    document.getElementById('tbody-income').innerHTML=valid.map(r=>`<tr>
+      <td>${r.ticker}</td><td>${fmtNum(r.is?.revenue)}</td><td>${fmtNum(r.is?.grossProfit)}</td>
+      <td>${fmtNum(r.is?.ebitda)}</td><td>${fmtNum(r.is?.netIncome)}</td>
+      <td>${r.is?.netIncomeRatio?+(r.is.netIncomeRatio*100).toFixed(1)+'%':'—'}</td></tr>`).join('');
+    setMetrics('estados',[
+      {label:'Empresa mayor rev.',value:tkrs[revs.indexOf(Math.max(...revs))]||'—'},
+      {label:'Mayor FCF',value:tkrs[fcf.indexOf(Math.max(...fcf))]||'—',cls:'pos'},
+      {label:'Tickers OK',value:valid.length+'/'+tickers.length},
+      {label:'Período',value:period==='annual'?'Anual':'Trimestral'},
+    ]);
+    setHdr('estados',tkrs);
+    const ts=document.getElementById('ts-estados');if(ts)ts.textContent=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});
+    const insight=await callClaude(SYS,`Estados contables (${period}) para ${tkrs.join(', ')}. Ingresos: ${tkrs.map((t,i)=>`${t}=${fmtNum(revs[i])}`).join(', ')}. Utilidad neta: ${tkrs.map((t,i)=>`${t}=${fmtNum(nets[i])}`).join(', ')}. FCF: ${tkrs.map((t,i)=>`${t}=${fmtNum(fcf[i])}`).join(', ')}. Márgenes netos: ${tkrs.map((t,i)=>`${t}=${nm[i]??'—'}%`).join(', ')}. Analizá salud financiera, calidad de utilidades y capacidad de generación de caja.`);
+    setInsight('estados',insight);
+    hideL('estados');showR('estados');
+  }catch(e){hideL('estados');showE('estados',e.message);}
+}
+
+/* ────────────────────────────────────────────────────────────────
+   32 — PORTFOLIO RATIOS (FMP API)
+   ──────────────────────────────────────────────────────────────── */
+async function runRatios(tickers){
+  showL('ratios');hideE('ratios');hideR('ratios');
+  try{
+    const fmpKey=getFmpKey()||document.getElementById('p-fmp-key2')?.value.trim();
+    if(!fmpKey){hideL('ratios');showE('ratios','Ingresá tu API Key de Financial Modeling Prep.');return}
+    saveFmpKey(fmpKey);
+    const ratioResults=await Promise.all(tickers.map(async t=>{
+      const [km,rat]=await Promise.all([
+        fmpFetch('key-metrics-ttm',t,fmpKey).catch(()=>null),
+        fmpFetch('ratios-ttm',t,fmpKey).catch(()=>null),
+      ]);
+      const pe=rat?.peRatioTTM||rat?.priceEarningsRatioTTM||null;
+      const pb=rat?.pbRatioTTM||rat?.priceToBookRatioTTM||null;
+      const pcf=rat?.pocfratioTTM||rat?.priceToOperatingCashFlowsRatioTTM||null;
+      const ev=km?.evToEBITDATTM||km?.enterpriseValueOverEBITDATTM||null;
+      return{ticker:t,pe,pb,pcf,ev};
+    }));
+    const valid=ratioResults.filter(r=>r.pe||r.pb||r.ev||r.pcf);
+    if(!valid.length)throw new Error('FMP no devolvió ratios. Verificá la API key y los tickers.');
+    const tkrs=valid.map(r=>r.ticker);
+    const barOpts=(data,name,color)=>({x:tkrs,y:data,type:'bar',name,marker:{color}});
+    Plotly.newPlot('chart-ratios-pe',[barOpts(valid.map(r=>r.pe),'P/E','#2A4365')],L({yaxis:{...PLT.yaxis,title:'x'}}),CFG);
+    Plotly.newPlot('chart-ratios-pb',[barOpts(valid.map(r=>r.pb),'P/B','#E05252')],L({yaxis:{...PLT.yaxis,title:'x'}}),CFG);
+    Plotly.newPlot('chart-ratios-ev',[barOpts(valid.map(r=>r.ev),'EV/EBITDA','#7B8CDE')],L({yaxis:{...PLT.yaxis,title:'x'}}),CFG);
+    Plotly.newPlot('chart-ratios-pcf',[barOpts(valid.map(r=>r.pcf),'P/CF','#00D4AA')],L({yaxis:{...PLT.yaxis,title:'x'}}),CFG);
+    const medPE=valid.map(r=>r.pe).filter(Boolean);
+    const medPEval=medPE.length?mean(medPE):null;
+    document.getElementById('tbody-ratios').innerHTML=valid.map(r=>{
+      const cheap=r.pe&&medPEval&&r.pe<medPEval*0.8;
+      const exp=r.pe&&medPEval&&r.pe>medPEval*1.2;
+      const sig=cheap?'⬇ Barato rel.':exp?'⬆ Caro rel.':'≈ Par';
+      const sigCls=cheap?'pos':exp?'neg':'';
+      return`<tr><td>${r.ticker}</td>
+        <td>${r.pe?r.pe.toFixed(1):'—'}</td><td>${r.pb?r.pb.toFixed(2):'—'}</td>
+        <td>${r.pcf?r.pcf.toFixed(1):'—'}</td><td>${r.ev?r.ev.toFixed(1):'—'}</td>
+        <td class="${sigCls}">${sig}</td></tr>`;
+    }).join('');
+    setMetrics('ratios',[
+      {label:'P/E más bajo',value:tkrs[valid.map(r=>r.pe||999).indexOf(Math.min(...valid.map(r=>r.pe||999)))]||'—',cls:'pos'},
+      {label:'EV/EBITDA más bajo',value:tkrs[valid.map(r=>r.ev||999).indexOf(Math.min(...valid.map(r=>r.ev||999)))]||'—',cls:'pos'},
+      {label:'Tickers OK',value:valid.length+'/'+tickers.length},
+    ]);
+    setHdr('ratios',tkrs);
+    const ts=document.getElementById('ts-ratios');if(ts)ts.textContent=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});
+    const insight=await callClaude(SYS,`Ratios de valuación TTM para ${tkrs.join(', ')}. ${valid.map(r=>`${r.ticker}: P/E=${r.pe?.toFixed(1)||'—'}, P/B=${r.pb?.toFixed(2)||'—'}, P/CF=${r.pcf?.toFixed(1)||'—'}, EV/EBITDA=${r.ev?.toFixed(1)||'—'}`).join(' | ')}. Analizá valuación relativa entre los activos, qué está caro vs barato y qué implica para una cartera value vs growth.`);
+    setInsight('ratios',insight);
+    hideL('ratios');showR('ratios');
+  }catch(e){hideL('ratios');showE('ratios',e.message);}
+}
+
+</script>
+</body>
+</html>
